@@ -10,6 +10,7 @@ PGFPlotsX = "8314cec4-20b6-5062-9cdb-752b83310925"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 Tracking = "10b2438b-ffd4-5096-aa58-44041d5c8f3b"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 DrWatson = "2.7.3"
