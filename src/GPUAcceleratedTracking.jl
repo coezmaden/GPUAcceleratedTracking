@@ -15,7 +15,9 @@ include("gen_signal.jl")
 include("benchmark_functions.jl")
 
 const GNSSDICT = Dict(
-    "GPSL1" => GPSL1
+    "GPSL1" => GPSL1,
+    "GPSL5" => GPSL5,
+    "GalileoE1B" => GalileoE1B
 )
 
 export 
