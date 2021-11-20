@@ -6,7 +6,7 @@ using GPUAcceleratedTracking, GNSSSignals, CUDA, Tracking, StructArrays, Benchma
 using Tracking: Hz, ms
 using Unitful
 
-os_name = @static Sys.iswindows() ? "windows" : (@static Sys.isapple() ? "macos" : @static Sys.islinux() ? "linux" : Sys.isunix() ? "generic_unix" : throw("Can't determine OS name"))
+os_name = @static Sys.iswindows() ? "windows" : (@static Sys.isapple() ? "macos" : @static Sys.islinux() ? "linux" : @static Sys.isunix() ? "generic_unix" : throw("Can't determine OS name"))
 
 allparams = Dict(
     "processor"   => ["CPU", "GPU"],
