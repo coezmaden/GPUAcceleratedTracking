@@ -59,7 +59,7 @@ function gen_signal!(
 ) where {N, T <: Array{Float32, 2}}
     code_phases = get_code_frequency(system) / sampling_frequency .* (0:num_samples-1) .+ start_code_phase
     upsampled_codes = system.codes[1 .+ mod.(floor.(Int, code_phases), get_code_length(system)), prn]
-    carrier_phases = T((2π * (0:num_samples-1) * carrier_frequency / sampling_frequency .+ start_carrier_phase))
+    carrier_phases = Vector{Float32}(2π * (0:num_samples-1) * carrier_frequency / sampling_frequency .+ start_carrier_phase)
     signal.re[1:num_samples,:] = cos.(carrier_phases) .* upsampled_codes * ones(N)'
     signal.im[1:num_samples,:] = sin.(carrier_phases) .* upsampled_codes * ones(N)'
     return signal

@@ -11,7 +11,9 @@ os_name = @static Sys.iswindows() ? "windows" : (@static Sys.isapple() ? "macos"
 allparams = Dict(
     "processor"   => ["CPU", "GPU"],
     "GNSS"  => ["GPSL1"],
-    "num_samples" => collect(2500:2500:50000),
+    "num_samples" => [2500, 50000],
+    "num_ants" => [4],
+    "num_correlators" => [5],
     "OS" => os_name
 )
 
