@@ -12,7 +12,7 @@ import Unitful: MHz, kHz, Hz, s, ms, dBHz, ustrip, NoUnits
 import Tracking: TrackingState, NumAnts, NumAccumulators
 
 include("gen_signal.jl")
-include("benchmark_loop.jl")
+include("benchmark_functions.jl")
 
 const GNSSDICT = Dict(
     "GPSL1" => GPSL1
