@@ -14,7 +14,11 @@ import Tracking: TrackingState, NumAnts, NumAccumulators
 include("gen_signal.jl")
 include("benchmark_loop.jl")
 
+const GNSSDICT = Dict(
+    "GPSL1" => GPSL1
+)
+
 export 
     gen_signal, 
-    do_benchmark
+    do_track_benchmark
 end

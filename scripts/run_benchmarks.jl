@@ -5,26 +5,19 @@ using DrWatson
 using GPUAcceleratedTracking, GNSSSignals, CUDA, Tracking, StructArrays, BenchmarkTools
 using Tracking: Hz, ms
 using Unitful
-num_samples = 2500
-carrier_doppler = 1500Hz
-code_phase = 0
-prn = 1
-gpsl1_gpu = GPSL1(use_gpu = Val(true))
-gpsl1_cpu = GPSL1()
+
+os_name = @static Sys.iswindows() ? "windows" : (@static Sys.isapple() ? "macos" : @static Sys.islinux() ? "linux" : Sys.isunix() ? "generic_unix" : throw("Can't determine OS name"))
 
 allparams = Dict(
     "processor"   => ["CPU", "GPU"],
-    "GNSS"  => [Val(GPSL1)],
-    "num_samples" => [2500, 50000]
+    "GNSS"  => ["GPSL1"],
+    "num_samples" => [2500, 50000],
+    "OS" => os_name
 )
 
 dicts = dict_list(allparams)
 
 for (_, d) in enumerate(dicts)
-    f = do_benchmark(d)
-    wsave(datadir("benchmarks", savename(d, "jld2")), f)
-end
-
-function valtostring(gnss::Val(S)) where {S}
-    String(typeof(gnss))
+    benchmark_results = do_track_benchmark(d)
+    @tagsave(datadir("benchmarks", savename("TrackFunctionBenchmark", d, "jld2")), benchmark_results)
 end
