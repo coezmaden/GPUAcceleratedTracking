@@ -12,8 +12,8 @@ allparams = Dict(
     "processor"   => ["CPU", "GPU"],
     "GNSS"  => ["GPSL1"],
     "num_samples" => [2500, 50000],
-    "num_ants" => [4],
-    "num_correlators" => [5],
+    "num_ants" => [1],
+    "num_correlators" => [3],
     "OS" => os_name
 )
 
@@ -21,5 +21,10 @@ dicts = dict_list(allparams)
 
 for (_, d) in enumerate(dicts)
     benchmark_results = do_track_benchmark(d)
-    @tagsave(datadir("benchmarks", savename("TrackFunctionBenchmark", d, "jld2")), benchmark_results)
+    @tagsave(datadir("benchmarks/track", savename("TrackFunctionBenchmark", d, "jld2")), benchmark_results)
+end
+
+for (_, d) in enumerate(dicts)
+    benchmark_results = do_kernel_benchmark(d)
+    @tagsave(datadir("benchmarks/kernel", savename("KernelBenchmark", d, "jld2")), benchmark_results)
 end

@@ -8,13 +8,20 @@ using
     Parameters,
     Tracking,
     Statistics,
-    Dates
+    Dates,
+    DataFrames,
+    Query,
+    Plots,
+    StatsPlots,
+    PGFPlotsX
     
 import Unitful: MHz, kHz, Hz, s, ms, dBHz, ustrip, NoUnits
 import Tracking: TrackingState, NumAnts, NumAccumulators
 
 include("gen_signal.jl")
-include("benchmark_functions.jl")
+include("benchmarks.jl")
+include("plots.jl")
+
 
 const GNSSDICT = Dict(
     "GPSL1" => GPSL1,
@@ -24,6 +31,8 @@ const GNSSDICT = Dict(
 
 export 
     gen_signal, 
-    do_track_benchmark
+    do_track_benchmark,
+    do_kernel_benchmark,
+    plot_min_exec_time
 
 end
