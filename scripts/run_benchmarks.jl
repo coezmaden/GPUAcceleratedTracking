@@ -25,6 +25,11 @@ for (_, d) in enumerate(dicts)
 end
 
 for (_, d) in enumerate(dicts)
-    benchmark_results = do_kernel_benchmark(d)
-    @tagsave(datadir("benchmarks/kernel", savename("KernelBenchmark", d, "jld2")), benchmark_results)
+    benchmark_results = do_kernel_wrapper_benchmark(d)
+    @tagsave(datadir("benchmarks/kernel/nowrapper", savename("KernelBenchmark", d, "jld2")), benchmark_results)
+end
+
+for (_, d) in enumerate(dicts)
+    benchmark_results = do_kernel_nowrapper_benchmark(d)
+    @tagsave(datadir("benchmarks/kernel/wrapper", savename("KernelBenchmark", d, "jld2")), benchmark_results)
 end

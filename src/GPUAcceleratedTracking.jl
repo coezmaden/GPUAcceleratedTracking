@@ -32,7 +32,7 @@ const GNSSDICT = Dict(
 export 
     gen_signal, 
     do_track_benchmark,
-    do_kernel_benchmark,
+    do_kernel_wrapper_benchmark,
     plot_min_exec_time
 
 end
