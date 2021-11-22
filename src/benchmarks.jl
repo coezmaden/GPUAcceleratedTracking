@@ -58,17 +58,19 @@ function _run_kernel_wrapper_benchmark(
     code_replica = Vector{Int8}(undef, num_samples)
     carrier_replica = StructArray{ComplexF32}((Array{Float32}(undef, num_samples),Array{Float32}(undef, num_samples)))
     downconverted_signal = similar(carrier_replica)
-    @benchmark Tracking.downconvert_and_correlate!(
-        $system,
-        $signal,
-        $correlator,
+    # @benchmark 
+    
+    Tracking.downconvert_and_correlate!(
+        system,
+        signal,
+        correlator,
         code_replica,
         0,
         carrier_replica,
         0.0,
         downconverted_signal,
-        $get_code_frequency(system),
-        $get_correlator_sample_shifts(correlator),
+        get_code_frequency(system),
+        get_correlator_sample_shifts(system, correlator, sampling_frequency, 0),
         1500Hz,
         sampling_frequency,
         1,
@@ -118,6 +120,22 @@ function _run_kernel_nowrapper_benchmark(
     )
 end
 
+function _run_kernel_nowrapper_benchmark(
+    gnss,
+    enable_gpu::Val{false}, 
+    num_samples::Int,
+    num_ants::Int,
+    num_correlators::Int,
+)
+    _run_kernel_wrapper_benchmark(
+        gnss,
+        enable_gpu::Val{false}, 
+        num_samples::Int,
+        num_ants::Int,
+        num_correlators::Int,
+    )
+end
+
 function do_track_benchmark(benchmark_params::Dict)
     @unpack GNSS, num_samples, num_ants, num_correlators, processor, OS = benchmark_params
     @debug "[$(Dates.Time(Dates.now()))] Benchmarking: $(GNSS), $(num_samples) samples,  $(num_ants) antenna,  $(num_correlators) correlators $(processor)"
@@ -152,6 +170,32 @@ function do_kernel_wrapper_benchmark(benchmark_params::Dict)
     cpu_name == "unkown" ? "NVIDIA ARMv8" : cpu_name
     processor_name = processor == "GPU" ? name(CUDA.CuDevice(0)) : cpu_name
     benchmark_results = _run_kernel_wrapper_benchmark(
+        GNSSDICT[GNSS], 
+        enable_gpu,
+        num_samples,
+        num_ants,
+        num_correlators
+    )
+    benchmark_results_w_params = copy(benchmark_params)
+    benchmark_results_w_params["TrialObj"] = benchmark_results
+    benchmark_results_w_params["RawTimes"] = benchmark_results.times
+    benchmark_results_w_params["Minimum"] = minimum(benchmark_results).time
+    benchmark_results_w_params["Median"] = median(benchmark_results).time
+    benchmark_results_w_params["Mean"] = mean(benchmark_results).time
+    benchmark_results_w_params["σ"] = std(benchmark_results).time
+    benchmark_results_w_params["Maximum"] = maximum(benchmark_results).time
+    benchmark_results_w_params[processor * " model"] = processor_name
+    return benchmark_results_w_params
+end
+
+function do_kernel_nowrapper_benchmark(benchmark_params::Dict)
+    @unpack GNSS, num_samples, num_ants, num_correlators, processor, OS = benchmark_params
+    @debug "[$(Dates.Time(Dates.now()))] Benchmarking: $(GNSS), $(num_samples) samples,  $(num_ants) antenna,  $(num_correlators) correlators $(processor)"
+    enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
+    cpu_name = Sys.cpu_info()[1].model
+    cpu_name == "unkown" ? "NVIDIA ARMv8" : cpu_name
+    processor_name = processor == "GPU" ? name(CUDA.CuDevice(0)) : cpu_name
+    benchmark_results = _run_kernel_nowrapper_benchmark(
         GNSSDICT[GNSS], 
         enable_gpu,
         num_samples,

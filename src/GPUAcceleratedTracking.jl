@@ -33,6 +33,7 @@ export
     gen_signal, 
     do_track_benchmark,
     do_kernel_wrapper_benchmark,
+    do_kernel_nowrapper_benchmark
     plot_min_exec_time
 
 end
