@@ -1142,9 +1142,9 @@ version = "0.5.13"
 
 [[Tracking]]
 deps = ["CUDA", "DocStringExtensions", "GNSSSignals", "LinearAlgebra", "LoopVectorization", "StaticArrays", "StructArrays", "TrackingLoopFilters", "Unitful"]
-git-tree-sha1 = "d3c4fb3ed123d391c065d5b0fc222871fb2a968c"
-repo-rev = "master"
-repo-url = "https://github.com/ozmaden/Tracking.jl#feature/gpu_kernels"
+git-tree-sha1 = "5e2833b4e3e8ac37a2303f5e3746e55b06c3db64"
+repo-rev = "feature/gpu_kernels"
+repo-url = "https://github.com/ozmaden/Tracking.jl.git"
 uuid = "10b2438b-ffd4-5096-aa58-44041d5c8f3b"
 version = "0.14.8"
 
