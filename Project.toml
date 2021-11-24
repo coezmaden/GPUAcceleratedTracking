@@ -1,5 +1,8 @@
 name = "GPUAcceleratedTracking"
-authors = ["Can Ozmaden"]
+uuid = "b28aa89e-4cf5-11ec-3246-2dbdaa755691"
+version = "0.1.0"
+authors = ["Can Ozmaden can.oezmaden@rwth-aachen"]
+
 
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
