@@ -239,9 +239,9 @@ version = "1.0.3"
 
 [[DiffRules]]
 deps = ["LogExpFunctions", "NaNMath", "Random", "SpecialFunctions"]
-git-tree-sha1 = "3287dacf67c3652d3fed09f4c12c187ae4dbb89a"
+git-tree-sha1 = "d8f468c5cd4d94e86816603f7d18ece910b4aaf1"
 uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
-version = "1.4.0"
+version = "1.5.0"
 
 [[Distances]]
 deps = ["LinearAlgebra", "Statistics", "StatsAPI"]
@@ -1144,7 +1144,7 @@ version = "0.5.13"
 deps = ["CUDA", "DocStringExtensions", "GNSSSignals", "LinearAlgebra", "LoopVectorization", "StaticArrays", "StructArrays", "TrackingLoopFilters", "Unitful"]
 git-tree-sha1 = "d3c4fb3ed123d391c065d5b0fc222871fb2a968c"
 repo-rev = "master"
-repo-url = "https://github.com/JuliaGNSS/Tracking.jl"
+repo-url = "https://github.com/ozmaden/Tracking.jl#feature/gpu_kernels"
 uuid = "10b2438b-ffd4-5096-aa58-44041d5c8f3b"
 version = "0.14.8"
 

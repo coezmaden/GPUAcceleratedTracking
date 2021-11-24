@@ -329,6 +329,10 @@ TSWLatexianTemp*
 # glossaries
 *.glstex
 
+# CUDA NVIDIA NSIGHT SYSTEMS
+# Nsight Systems reports
+*.qdrep 
+
 ################################################################################
 #                              Operating systems                               #
 ################################################################################
