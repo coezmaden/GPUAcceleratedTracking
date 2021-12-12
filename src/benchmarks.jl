@@ -1,3 +1,13 @@
+function add_results!(benchmark_results_w_params, benchmark_results)
+    benchmark_results_w_params["TrialObj"] = benchmark_results
+    benchmark_results_w_params["RawTimes"] = benchmark_results.times
+    benchmark_results_w_params["Minimum"] = minimum(benchmark_results).time
+    benchmark_results_w_params["Median"] = median(benchmark_results).time
+    benchmark_results_w_params["Mean"] = mean(benchmark_results).time
+    benchmark_results_w_params["σ"] = std(benchmark_results).time
+    benchmark_results_w_params["Maximum"] = maximum(benchmark_results).time
+end
+
 function _run_track_benchmark(
     gnss,
     enable_gpu, 
@@ -94,13 +104,7 @@ function do_track_benchmark(benchmark_params::Dict)
         num_correlators
     )
     benchmark_results_w_params = copy(benchmark_params)
-    benchmark_results_w_params["TrialObj"] = benchmark_results
-    benchmark_results_w_params["RawTimes"] = benchmark_results.times
-    benchmark_results_w_params["Minimum"] = minimum(benchmark_results).time
-    benchmark_results_w_params["Median"] = median(benchmark_results).time
-    benchmark_results_w_params["Mean"] = mean(benchmark_results).time
-    benchmark_results_w_params["σ"] = std(benchmark_results).time
-    benchmark_results_w_params["Maximum"] = maximum(benchmark_results).time
+    add_results!(benchmark_results_w_params, benchmark_results)
     benchmark_results_w_params[processor * " model"] = processor_name
     return benchmark_results_w_params
 end
@@ -120,13 +124,7 @@ function do_kernel_benchmark(benchmark_params::Dict)
         num_correlators
     )
     benchmark_results_w_params = copy(benchmark_params)
-    benchmark_results_w_params["TrialObj"] = benchmark_results
-    benchmark_results_w_params["RawTimes"] = benchmark_results.times
-    benchmark_results_w_params["Minimum"] = minimum(benchmark_results).time
-    benchmark_results_w_params["Median"] = median(benchmark_results).time
-    benchmark_results_w_params["Mean"] = mean(benchmark_results).time
-    benchmark_results_w_params["σ"] = std(benchmark_results).time
-    benchmark_results_w_params["Maximum"] = maximum(benchmark_results).time
+    add_results!(benchmark_results_w_params, benchmark_results)
     benchmark_results_w_params[processor * " model"] = processor_name
     return benchmark_results_w_params
 end
