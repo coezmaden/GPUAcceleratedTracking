@@ -37,6 +37,7 @@ function _run_kernel_benchmark(
     num_samples::Int,
     num_ants::Int,
     num_correlators::Int,
+    algorithm::KernelAlgorithm{2}
 )
     system = gnss(use_gpu = enable_gpu)
     correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), num_correlators)
@@ -48,40 +49,32 @@ function _run_kernel_benchmark(
     downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
     threads_per_block = [1024, 512]
     blocks_per_grid = cld.(num_samples, threads_per_block)
-    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (cld(num_samples, threads_per_block[2]), num_ants, num_corrs)),CUDA.zeros(Float32, (cld(num_samples, threads_per_block[2]), num_ants, num_corrs)))),
+    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (cld(num_samples, threads_per_block[2]), num_ants, num_correlators)),CUDA.zeros(Float32, (cld(num_samples, threads_per_block[2]), num_ants, num_correlators))))
 
-    @benchmark begin
-        @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] Tracking.gen_code_replica_kernel!(
-            $code_replica,
-            $system.codes,
-            $get_code_frequency(system),
-            $sampling_frequency,
-            0,
-            1,
-            $num_samples,
-            $num_of_shifts,
-            $get_code_length(system)
-        )
-        @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] shmem=shmem_size Tracking.downconvert_and_correlate_kernel!(
-            $partial_sum.re,
-            $partial_sum.im,
-            $carrier_replica.re,
-            $carrier_replica.im,
-            $downconverted_signal.re,
-            $downconverted_signal.im,
-            $signal.re,
-            $signal.im,
-            $code_replica,
-            $get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5),
-            $carrier_frequency,
-            $sampling_frequency,
-            $carrier_phase,
-            $num_samples,
-            $NumAnts(num_ants)
-        )
-        #Tracking.cpu_reduce_partial_sum($partial_sum)
-        Tracking.cuda_reduce_partial_sum($partial_sum)
-    end
+    downconvert_and_correlate_2(
+        code_replica,
+        system.codes,
+        get_code_frequency(system),
+        sampling_frequency,
+        0.0f0,
+        1,
+        num_samples,
+        num_of_shifts,
+        get_code_length(system),
+        partial_sum.re,
+        partial_sum.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5),
+        1500Hz,
+        0.0f0,
+        num_ants
+    )
+
 end
 
 # CPU benchmark eqv to kernel benchmark
@@ -91,6 +84,7 @@ function _run_kernel_benchmark(
     num_samples::Int,
     num_ants::Int,
     num_correlators::Int,
+    algortihm
 )
     system = gnss(use_gpu = enable_gpu)
     correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), num_correlators)
@@ -148,7 +142,8 @@ function run_kernel_benchmark(benchmark_params::Dict)
         enable_gpu,
         num_samples,
         num_ants,
-        num_correlators
+        num_correlators,
+        algorithm
     )
     benchmark_results_w_params = copy(benchmark_params)
     add_results!(benchmark_results_w_params, benchmark_results)

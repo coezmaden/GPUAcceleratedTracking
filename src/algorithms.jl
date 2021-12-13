@@ -1,0 +1,53 @@
+function downconvert_and_correlate_2(
+    code_replica,
+    codes,
+    code_frequency,
+    sampling_frequency,
+    start_code_phase,
+    prn,
+    num_samples,
+    num_of_shifts,
+    code_length,
+    partial_sum_re,
+    partial_sum_im,
+    carrier_replica_re,
+    carrier_replica_im,
+    downconverted_signal_re,
+    downconverted_signal_im,
+    signal_re,
+    signal_im,
+    correlator_sample_shifts,
+    carrier_frequency,
+    carrier_phase,
+    num_ants
+)
+    @cuda threads=1024 blocks=cld(num_samples, 1024) Tracking.gen_code_replica_kernel!(
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length
+    )
+    @cuda threads=512 blocks=cld(num_samples, 512) Tracking.downconvert_and_correlate_kernel!(
+        partial_sum_re,
+        partial_sum_im,
+        carrier_replica_re,
+        carrier_replica_im,
+        downconverted_signal_re,
+        downconverted_signal_im,
+        signal_re,
+        signal_im,
+        code_replica,
+        correlator_sample_shifts,
+        carrier_frequency,
+        sampling_frequency,
+        carrier_phase,
+        num_samples,
+        num_ants
+    )
+    cuda_reduce_partial_sum(partial_sum)
+end
