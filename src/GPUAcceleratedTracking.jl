@@ -22,6 +22,10 @@ include("gen_signal.jl")
 include("benchmarks.jl")
 include("plots.jl")
 
+struct KernelAlgorithm{x}
+end
+
+KernelAlgorithm(x) = KernelAlgorithm{x}()
 
 const GNSSDICT = Dict(
     "GPSL1" => GPSL1,
@@ -32,8 +36,7 @@ const GNSSDICT = Dict(
 export 
     gen_signal, 
     do_track_benchmark,
-    do_kernel_wrapper_benchmark,
-    do_kernel_nowrapper_benchmark
+    do_kernel_benchmark,
     plot_min_exec_time
 
 end
