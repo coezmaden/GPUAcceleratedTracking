@@ -9,6 +9,9 @@ function add_results!(benchmark_results_w_params, benchmark_results)
 end
 
 function add_metadata!(benchmark_results_w_params, processor, algorithm::KernelAlgorithm{ALGN}) where ALGN
+    cpu_name = Sys.cpu_info()[1].model
+    cpu_name == "unknown" ? "NVIDIA ARMv8" : cpu_name
+    processor_name = processor == "GPU" ? name(CUDA.CuDevice(0)) : cpu_name
     benchmark_results_w_params[processor * " model"] = processor_name
     benchmark_results_w_params[algorithm] = ALGN
 end
@@ -132,7 +135,7 @@ function run_track_benchmark(benchmark_params::Dict)
     )
     benchmark_results_w_params = copy(benchmark_params)
     add_results!(benchmark_results_w_params, benchmark_results)
-    benchmark_results_w_params[processor * " model"] = processor_name
+    add_metadata!(benchmark_results_w_params, processor, algorithm)
     return benchmark_results_w_params
 end
 
@@ -140,9 +143,6 @@ function run_kernel_benchmark(benchmark_params::Dict)
     @unpack GNSS, num_samples, num_ants, num_correlators, processor, OS, algorithm = benchmark_params
     @debug "[$(Dates.Time(Dates.now()))] Benchmarking: $(GNSS), $(num_samples) samples,  $(num_ants) antenna,  $(num_correlators) correlators $(processor) w/ Algorithm:$(algorithm)"
     enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
-    cpu_name = Sys.cpu_info()[1].model
-    cpu_name == "unknown" ? "NVIDIA ARMv8" : cpu_name
-    processor_name = processor == "GPU" ? name(CUDA.CuDevice(0)) : cpu_name
     benchmark_results = _run_kernel_benchmark(
         GNSSDICT[GNSS], 
         enable_gpu,

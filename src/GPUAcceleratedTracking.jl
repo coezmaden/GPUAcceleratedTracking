@@ -18,10 +18,6 @@ using
 import Unitful: MHz, kHz, Hz, s, ms, dBHz, ustrip, NoUnits
 import Tracking: TrackingState, NumAnts, NumAccumulators
 
-include("gen_signal.jl")
-include("benchmarks.jl")
-include("plots.jl")
-
 struct KernelAlgorithm{x}
 end
 
@@ -32,6 +28,10 @@ const GNSSDICT = Dict(
     "GPSL5" => GPSL5,
     "GalileoE1B" => GalileoE1B
 )
+
+include("gen_signal.jl")
+include("benchmarks.jl")
+include("plots.jl")
 
 export 
     gen_signal, 

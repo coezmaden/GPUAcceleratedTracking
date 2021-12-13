@@ -1,10 +1,5 @@
-using DrWatson
+using GPUAcceleratedTracking, DrWatson
 @quickactivate "GPUAcceleratedTracking"
-
-# Generate params for signals
-using GPUAcceleratedTracking, GNSSSignals, CUDA, Tracking, StructArrays, BenchmarkTools
-using Tracking: Hz, ms
-using Unitful
 
 os_name = @static Sys.iswindows() ? "windows" : (@static Sys.isapple() ? "macos" : @static Sys.islinux() ? "linux" : @static Sys.isunix() ? "generic_unix" : throw("Can't determine OS name"))
 
