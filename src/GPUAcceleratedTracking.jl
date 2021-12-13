@@ -35,8 +35,9 @@ const GNSSDICT = Dict(
 
 export 
     gen_signal, 
-    do_track_benchmark,
-    do_kernel_benchmark,
-    plot_min_exec_time
+    run_track_benchmark,
+    run_kernel_benchmark,
+    plot_min_exec_time,
+    KernelAlgorithm
 
 end

@@ -21,11 +21,11 @@ allparams = Dict(
 dicts = dict_list(allparams)
 
 for (_, d) in enumerate(dicts)
-    benchmark_results = do_track_benchmark(d)
+    benchmark_results = run_track_benchmark(d)
     @tagsave(datadir("benchmarks/track", savename("TrackFunctionBenchmark", d, "jld2")), benchmark_results)
 end
 
 for (_, d) in enumerate(dicts)
-    benchmark_results = do_kernel_benchmark(d)
+    benchmark_results = run_kernel_benchmark(d)
     @tagsave(datadir("benchmarks/kernel", savename("KernelBenchmark", d, "jld2")), benchmark_results)
 end

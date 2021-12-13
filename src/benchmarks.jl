@@ -8,7 +8,7 @@ function add_results!(benchmark_results_w_params, benchmark_results)
     benchmark_results_w_params["Maximum"] = maximum(benchmark_results).time
 end
 
-function add_metadata!(processor, algortih::KernelAlgorithm{ALGN}) where ALGN
+function add_metadata!(benchmark_results_w_params, processor, algorithm::KernelAlgorithm{ALGN}) where ALGN
     benchmark_results_w_params[processor * " model"] = processor_name
     benchmark_results_w_params[algorithm] = ALGN
 end
@@ -116,7 +116,7 @@ function _run_kernel_benchmark(
     )
 end
 
-function do_track_benchmark(benchmark_params::Dict)
+function run_track_benchmark(benchmark_params::Dict)
     @unpack GNSS, num_samples, num_ants, num_correlators, processor, OS, algorithm = benchmark_params
     @debug "[$(Dates.Time(Dates.now()))] Benchmarking: $(GNSS), $(num_samples) samples,  $(num_ants) antenna,  $(num_correlators) correlators $(processor) w/ Algorithm:$(algorithm)"
     enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
@@ -136,7 +136,7 @@ function do_track_benchmark(benchmark_params::Dict)
     return benchmark_results_w_params
 end
 
-function do_kernel_benchmark(benchmark_params::Dict)
+function run_kernel_benchmark(benchmark_params::Dict)
     @unpack GNSS, num_samples, num_ants, num_correlators, processor, OS, algorithm = benchmark_params
     @debug "[$(Dates.Time(Dates.now()))] Benchmarking: $(GNSS), $(num_samples) samples,  $(num_ants) antenna,  $(num_correlators) correlators $(processor) w/ Algorithm:$(algorithm)"
     enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
