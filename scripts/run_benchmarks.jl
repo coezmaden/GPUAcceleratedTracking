@@ -7,8 +7,8 @@ allparams = Dict(
     "processor"   => ["GPU"],
     "GNSS"  => ["GPSL1"],
     "num_samples" => [2500, 50000],
-    "num_ants" => [1],
-    "num_correlators" => [3],
+    "num_ants" => [NumAnts(1)],
+    "num_correlators" => [NumAccumulators(3)],
     "OS" => os_name,
     "algorithm" => [KernelAlgorithm(2)]
 )

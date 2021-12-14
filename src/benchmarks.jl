@@ -25,7 +25,7 @@ function _run_track_benchmark(
 ) where S
     system = gnss(use_gpu = enable_gpu)
     correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), num_correlators)
-    state = TrackingState(1, system, 1500Hz, 0, num_samples=num_samples, num_ants=NumAnts(num_ants), correlator=correlator)
+    state = TrackingState(1, system, 1500Hz, 0,  num_samples=num_samples, num_ants=NumAnts(num_ants), correlator=correlator)
     signal, sampling_frequency = gen_signal(system, 1, 1500Hz, num_samples, num_ants=NumAnts(num_ants))
     @benchmark track($signal, $state, $sampling_frequency)
 end
@@ -35,8 +35,8 @@ function _run_kernel_benchmark(
     gnss,
     enable_gpu::Val{true}, 
     num_samples::Int,
-    num_ants::Int,
-    num_correlators::Int,
+    num_ants::NumAnts{NANT},
+    num_correlators::NumAccumulators{NCOR},
     algorithm::KernelAlgorithm{2}
 )
     system = gnss(use_gpu = enable_gpu)
@@ -51,7 +51,7 @@ function _run_kernel_benchmark(
     blocks_per_grid = cld.(num_samples, threads_per_block)
     partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (cld(num_samples, threads_per_block[2]), num_ants, num_correlators)),CUDA.zeros(Float32, (cld(num_samples, threads_per_block[2]), num_ants, num_correlators))))
 
-    downconvert_and_correlate_2(
+    kernel_algorithm(
         code_replica,
         system.codes,
         get_code_frequency(system),
@@ -72,7 +72,8 @@ function _run_kernel_benchmark(
         get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5),
         1500Hz,
         0.0f0,
-        num_ants
+        num_ants,
+        algorithm
     )
 
 end
@@ -82,8 +83,8 @@ function _run_kernel_benchmark(
     gnss,
     enable_gpu::Val{false}, 
     num_samples::Int,
-    num_ants::Int,
-    num_correlators::Int,
+    num_ants::NumAnts{NANT},
+    num_correlators::NumAccumulators{NCOR},
     algortihm
 )
     system = gnss(use_gpu = enable_gpu)
@@ -135,7 +136,7 @@ end
 
 function run_kernel_benchmark(benchmark_params::Dict)
     @unpack GNSS, num_samples, num_ants, num_correlators, processor, OS, algorithm = benchmark_params
-    @debug "[$(Dates.Time(Dates.now()))] Benchmarking: $(GNSS), $(num_samples) samples,  $(num_ants) antenna,  $(num_correlators) correlators $(processor) w/ Algorithm:$(algorithm)"
+    # @debug "[$(Dates.Time(Dates.now()))] Benchmarking: $(GNSS), $(num_samples) samples,  $(num_ants) antenna,  $(num_correlators) correlators $(processor) w/ Algorithm:$(algorithm)"
     enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
     benchmark_results = _run_kernel_benchmark(
         GNSSDICT[GNSS], 

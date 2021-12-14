@@ -5,6 +5,7 @@ using
     CUDA,
     GNSSSignals,
     StructArrays,
+    StaticArrays,
     Parameters,
     Tracking,
     Statistics,
@@ -16,7 +17,7 @@ using
     PGFPlotsX
     
 import Unitful: MHz, kHz, Hz, s, ms, dBHz, ustrip, NoUnits
-import Tracking: TrackingState, NumAnts, NumAccumulators
+import Tracking: TrackingState, NumAnts, NumAccumulators, gen_code_replica!
 
 struct KernelAlgorithm{x}
 end
@@ -29,6 +30,7 @@ const GNSSDICT = Dict(
     "GalileoE1B" => GalileoE1B
 )
 
+include("algorithms.jl")
 include("gen_signal.jl")
 include("benchmarks.jl")
 include("plots.jl")
@@ -38,6 +40,7 @@ export
     run_track_benchmark,
     run_kernel_benchmark,
     plot_min_exec_time,
+    kernel_algorithm,
     KernelAlgorithm
 
 end

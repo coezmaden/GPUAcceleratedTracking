@@ -25,7 +25,7 @@ function shift_kernel_static!(destination, source, shifts::SVector{M, T}, N) whe
         for i = 1:M
             destination[tid, i] = source[mod1(tid + shifts[i], N)]
         end
-
+    end
     return nothing
 end
 
