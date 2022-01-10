@@ -38,7 +38,7 @@ function _run_kernel_benchmark(
     num_ants::NumAnts{NANT},
     num_correlators::NumAccumulators{NCOR},
     algorithm::KernelAlgorithm{2}
-)
+) where {NANT, NCOR}
     system = gnss(use_gpu = enable_gpu)
     correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), num_correlators)
     state = TrackingState(1, system, 1500Hz, 0, num_samples=num_samples, num_ants=NumAnts(num_ants), correlator=correlator)
@@ -86,7 +86,7 @@ function _run_kernel_benchmark(
     num_ants::NumAnts{NANT},
     num_correlators::NumAccumulators{NCOR},
     algortihm
-)
+) where {NANT, NCOR}
     system = gnss(use_gpu = enable_gpu)
     correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), num_correlators)
     state = TrackingState(1, system, 1500Hz, 0, num_samples=num_samples, num_ants=NumAnts(num_ants), correlator=correlator)
