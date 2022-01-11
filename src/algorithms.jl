@@ -129,10 +129,10 @@ function downconvert_and_correlate_kernel_2!(
         carrier_replica_im[sample_idx], carrier_replica_re[sample_idx] = CUDA.sincos(2π * ((sample_idx - 1) * carrier_frequency / sampling_frequency + carrier_phase))
 
         # downconversion / carrier wipe off
-        @inbounds for antenna_idx = 1:NANT
+        for antenna_idx = 1:NANT
             downconverted_signal_re[sample_idx, antenna_idx] = signal_re[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] + signal_im[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
             downconverted_signal_im[sample_idx, antenna_idx] = signal_im[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] - signal_re[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
-            @inbounds for corr_idx = 1:NCOR
+            for corr_idx = 1:NCOR
                 sample_shift = correlator_sample_shifts[corr_idx] - correlator_sample_shifts[1]
                 # write to shared memory cache
                 cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] = code_replica[sample_idx + sample_shift] * downconverted_signal_re[sample_idx, antenna_idx]
@@ -147,8 +147,8 @@ function downconvert_and_correlate_kernel_2!(
     i::Int = blockDim().x ÷ 2
     @inbounds while i != 0
         if cache_index < i
-            @inbounds for antenna_idx = 1:NANT
-                @inbounds for corr_idx = 1:NCOR
+            for antenna_idx = 1:NANT
+                for corr_idx = 1:NCOR
                     cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] += cache[1 + cache_index + 0 * iq_offset + i, antenna_idx, corr_idx]
                     cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] += cache[1 + cache_index + 1 * iq_offset + i, antenna_idx, corr_idx]
                 end
@@ -158,9 +158,9 @@ function downconvert_and_correlate_kernel_2!(
         i ÷= 2
     end
     
-    if (threadIdx().x - 1) == 0
-        @inbounds for antenna_idx = 1:NANT
-            @inbounds for corr_idx = 1:NCOR
+    @inbounds if (threadIdx().x - 1) == 0
+         for antenna_idx = 1:NANT
+            for corr_idx = 1:NCOR
                 partial_sum_re[blockIdx().x, antenna_idx, corr_idx] += cache[1 + 0 * iq_offset, antenna_idx, corr_idx]
                 partial_sum_im[blockIdx().x, antenna_idx, corr_idx] += cache[1 + 1 * iq_offset, antenna_idx, corr_idx]
             end

@@ -26,22 +26,52 @@ function add_metadata!(benchmark_results_w_params, processor, algorithm::KernelA
     benchmark_results_w_params["algorithm"] = ALGN
 end
 
-function run_kernel_benchmark(benchmark_params::Dict)
-    @unpack GNSS, num_samples, num_ants, num_correlators, processor, algorithm = benchmark_params
-    enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
-    algorithm = KernelAlgorithm(algorithm)
-    benchmark_results = _run_kernel_benchmark(
-        GNSSDICT[GNSS], 
-        enable_gpu,
-        num_samples,
-        num_ants,
-        num_correlators,
-        algorithm
+# CPU Benchmark
+function _run_kernel_benchmark(
+    gnss,
+    enable_gpu::Val{false},
+    num_samples,
+    num_ants,
+    num_correlators,
+    algorithm
+)
+    system = gnss(use_gpu = enable_gpu)
+    start_code_phase = 0.0
+    carrier_phase = 0.0
+    carrier_frequency = 1500Hz
+    prn = 1
+    code_frequency = get_code_frequency(system)
+
+    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants=NumAnts(num_ants))
+    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), num_correlators)
+    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
+    
+    state = TrackingState(prn, system, carrier_frequency, start_code_phase, num_samples=num_samples, num_ants=NumAnts(num_ants), correlator=correlator)
+
+    code_replica = Tracking.get_code(state)
+    Tracking.resize!(code_replica, num_samples + correlator_sample_shifts[end] - correlator_sample_shifts[1])
+    carrier_replica = Tracking.get_carrier(state)
+    Tracking.resize!(Tracking.choose(carrier_replica, signal), num_samples)
+    downconverted_signal_temp = Tracking.get_downconverted_signal(state)
+    downconverted_signal = Tracking.resize!(downconverted_signal_temp, size(signal, 1), signal)
+
+    @benchmark Tracking.downconvert_and_correlate!(
+        $system,
+        $signal,
+        $correlator,
+        $code_replica,
+        $start_code_phase,
+        $carrier_replica,
+        $carrier_phase,
+        $downconverted_signal,
+        $code_frequency,
+        $correlator_sample_shifts,
+        $carrier_frequency,
+        $sampling_frequency,
+        1,
+        $num_samples,
+        $prn
     )
-    benchmark_results_w_params = copy(benchmark_params)
-    add_results!(benchmark_results_w_params, benchmark_results)
-    add_metadata!(benchmark_results_w_params, processor, algorithm)
-    return benchmark_results_w_params
 end
 
 # GPU Kernel Benchmark for KernelAlgorithm 1
@@ -175,4 +205,22 @@ function _run_kernel_benchmark(
         nothing,
         $algorithm
     )
+end
+
+function run_kernel_benchmark(benchmark_params::Dict)
+    @unpack GNSS, num_samples, num_ants, num_correlators, processor, algorithm = benchmark_params
+    enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
+    algorithm = KernelAlgorithm(algorithm)
+    benchmark_results = _run_kernel_benchmark(
+        GNSSDICT[GNSS], 
+        enable_gpu,
+        num_samples,
+        num_ants,
+        num_correlators,
+        algorithm
+    )
+    benchmark_results_w_params = copy(benchmark_params)
+    add_results!(benchmark_results_w_params, benchmark_results)
+    add_metadata!(benchmark_results_w_params, processor, algorithm)
+    return benchmark_results_w_params
 end
