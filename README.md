@@ -20,3 +20,12 @@ To (locally) reproduce this project, do the following:
 
 This will install all necessary packages for you to be able to run the scripts and
 everything should work out of the box, including correctly finding local paths.
+
+
+## Kernels Description
+| Number | Description                                                                    |
+| -----  | -----------                                                                    |
+| 1      | Monolithic, two reductions with Harris#3                                       |
+| 2      | Three kernels, code replica generation seperate, two reductions with Harris#3  |
+| 3      | Three kernels, code replica generation seperate, two reductions with Harris#4  |
+

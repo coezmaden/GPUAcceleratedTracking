@@ -8,7 +8,7 @@ allparams = Dict(
     "num_samples" => [2500],
     "num_ants" => [1],
     "num_correlators" => [3],
-    "algorithm" => [1]
+    "algorithm" => [1, 2]
 )
 
 dicts = dict_list(allparams)
@@ -20,5 +20,8 @@ dicts = dict_list(allparams)
 
 for (_, d) in enumerate(dicts)
     benchmark_results = run_kernel_benchmark(d)
-    @tagsave(datadir("benchmarks/kernel", savename("KernelBenchmark", d, "jld2")), benchmark_results)
+    @tagsave(
+        datadir("benchmarks/kernel", savename("KernelBenchmark", d, "jld2")), 
+        benchmark_results
+    )
 end
