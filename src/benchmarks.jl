@@ -9,135 +9,27 @@ function add_results!(benchmark_results_w_params, benchmark_results)
 end
 
 function add_metadata!(benchmark_results_w_params, processor, algorithm::KernelAlgorithm{ALGN}) where ALGN
+    # Get OS info
+    os_name = @static Sys.iswindows() ? "windows" : (@static Sys.isapple() ? "macos" : @static Sys.islinux() ? "linux" : @static Sys.isunix() ? "generic_unix" : throw("Can't determine OS name"))
+    
+    # Get CPU info
     cpu_name = Sys.cpu_info()[1].model
+    # Workaround for NVIDIA Jetson CPU
     cpu_name == "unknown" ? "NVIDIA ARMv8" : cpu_name
+
+    # Get GPU name if GPU is selected, if not use cpu_name
     processor_name = processor == "GPU" ? name(CUDA.CuDevice(0)) : cpu_name
+
+    # Add metadata to the results
+    benchmark_results_w_params["os"] = os_name
     benchmark_results_w_params[processor * " model"] = processor_name
-    benchmark_results_w_params[algorithm] = ALGN
-end
-
-function _run_track_benchmark(
-    gnss,
-    enable_gpu, 
-    num_samples::Int,
-    num_ants::Int,
-    num_correlators::Int,
-) where S
-    system = gnss(use_gpu = enable_gpu)
-    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), num_correlators)
-    state = TrackingState(1, system, 1500Hz, 0,  num_samples=num_samples, num_ants=NumAnts(num_ants), correlator=correlator)
-    signal, sampling_frequency = gen_signal(system, 1, 1500Hz, num_samples, num_ants=NumAnts(num_ants))
-    @benchmark track($signal, $state, $sampling_frequency)
-end
-
-# GPU kernel benchmark
-function _run_kernel_benchmark(
-    gnss,
-    enable_gpu::Val{true}, 
-    num_samples::Int,
-    num_ants::NumAnts{NANT},
-    num_correlators::NumAccumulators{NCOR},
-    algorithm::KernelAlgorithm{2}
-) where {NANT, NCOR}
-    system = gnss(use_gpu = enable_gpu)
-    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), num_correlators)
-    state = TrackingState(1, system, 1500Hz, 0, num_samples=num_samples, num_ants=NumAnts(num_ants), correlator=correlator)
-    signal, sampling_frequency = gen_signal(system, 1, 1500Hz, num_samples, num_ants=NumAnts(num_ants))
-    num_of_shifts = get_num_accumulators(correlator) - 1
-    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
-    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
-    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
-    threads_per_block = [1024, 512]
-    blocks_per_grid = cld.(num_samples, threads_per_block)
-    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (cld(num_samples, threads_per_block[2]), num_ants, num_correlators)),CUDA.zeros(Float32, (cld(num_samples, threads_per_block[2]), num_ants, num_correlators))))
-
-    kernel_algorithm(
-        code_replica,
-        system.codes,
-        get_code_frequency(system),
-        sampling_frequency,
-        0.0f0,
-        1,
-        num_samples,
-        num_of_shifts,
-        get_code_length(system),
-        partial_sum.re,
-        partial_sum.im,
-        carrier_replica.re,
-        carrier_replica.im,
-        downconverted_signal.re,
-        downconverted_signal.im,
-        signal.re,
-        signal.im,
-        get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5),
-        1500Hz,
-        0.0f0,
-        num_ants,
-        algorithm
-    )
-
-end
-
-# CPU benchmark eqv to kernel benchmark
-function _run_kernel_benchmark(
-    gnss,
-    enable_gpu::Val{false}, 
-    num_samples::Int,
-    num_ants::NumAnts{NANT},
-    num_correlators::NumAccumulators{NCOR},
-    algortihm
-) where {NANT, NCOR}
-    system = gnss(use_gpu = enable_gpu)
-    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), num_correlators)
-    state = TrackingState(1, system, 1500Hz, 0, num_samples=num_samples, num_ants=NumAnts(num_ants), correlator=correlator)
-    signal, sampling_frequency = gen_signal(system, 1, 1500Hz, num_samples, num_ants=NumAnts(num_ants))
-    code_replica = Vector{Int8}(undef, num_samples)
-    carrier_replica = StructArray{ComplexF32}((Array{Float32}(undef, num_samples),Array{Float32}(undef, num_samples)))
-    downconverted_signal = similar(carrier_replica)
-
-    @benchmark Tracking.downconvert_and_correlate!(
-        $system,
-        $signal,
-        $correlator,
-        $code_replica,
-        0,
-        $carrier_replica,
-        0.0,
-        $downconverted_signal,
-        $get_code_frequency(system),
-        $get_correlator_sample_shifts(system, correlator, sampling_frequency, 0),
-        1500Hz,
-        $sampling_frequency,
-        1,
-        $num_samples,
-        1
-    )
-end
-
-function run_track_benchmark(benchmark_params::Dict)
-    @unpack GNSS, num_samples, num_ants, num_correlators, processor, OS, algorithm = benchmark_params
-    @debug "[$(Dates.Time(Dates.now()))] Benchmarking: $(GNSS), $(num_samples) samples,  $(num_ants) antenna,  $(num_correlators) correlators $(processor) w/ Algorithm:$(algorithm)"
-    enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
-    cpu_name = Sys.cpu_info()[1].model
-    cpu_name == "unkown" ? "NVIDIA ARMv8" : cpu_name
-    processor_name = processor == "GPU" ? name(CUDA.CuDevice(0)) : cpu_name
-    benchmark_results = _run_track_benchmark(
-        GNSSDICT[GNSS], 
-        enable_gpu,
-        num_samples,
-        num_ants,
-        num_correlators
-    )
-    benchmark_results_w_params = copy(benchmark_params)
-    add_results!(benchmark_results_w_params, benchmark_results)
-    add_metadata!(benchmark_results_w_params, processor, algorithm)
-    return benchmark_results_w_params
+    benchmark_results_w_params["algorithm"] = ALGN
 end
 
 function run_kernel_benchmark(benchmark_params::Dict)
-    @unpack GNSS, num_samples, num_ants, num_correlators, processor, OS, algorithm = benchmark_params
-    # @debug "[$(Dates.Time(Dates.now()))] Benchmarking: $(GNSS), $(num_samples) samples,  $(num_ants) antenna,  $(num_correlators) correlators $(processor) w/ Algorithm:$(algorithm)"
+    @unpack GNSS, num_samples, num_ants, num_correlators, processor, algorithm = benchmark_params
     enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
+    algorithm = KernelAlgorithm(algorithm)
     benchmark_results = _run_kernel_benchmark(
         GNSSDICT[GNSS], 
         enable_gpu,
@@ -150,4 +42,71 @@ function run_kernel_benchmark(benchmark_params::Dict)
     add_results!(benchmark_results_w_params, benchmark_results)
     add_metadata!(benchmark_results_w_params, processor, algorithm)
     return benchmark_results_w_params
+end
+
+# GPU Kernel Benchmark for KernelAlgorithm 2
+function _run_kernel_benchmark(
+    gnss,
+    enable_gpu::Val{true},
+    num_samples,
+    num_ants,
+    num_correlators,
+    algorithm::KernelAlgorithm{2}
+)   
+    # Generate GNSS object and signal information
+    system = gnss(use_gpu = enable_gpu)
+    codes = system.codes
+    code_frequency = get_code_frequency(system)
+    code_length = get_code_length(system)
+    start_code_phase = 0.0f0
+    carrier_phase = 0.0f0
+    carrier_frequency = 1500Hz
+    prn = 1
+
+    # Generate the signal
+    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants = NumAnts(num_ants), start_code_phase = start_code_phase, start_carrier_phase = carrier_phase)
+    
+    # Generate correlator
+    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
+    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
+    num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
+
+    # Generate blank code and carrier replica, and downconverted signal
+    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
+    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
+    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
+
+    # Generate CUDA kernel tuning parameters
+    threads_per_block = [1024, 32]
+    blocks_per_grid = cld.(num_samples, threads_per_block)
+    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts)))))
+    shmem_size = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
+
+    @benchmark CUDA.@sync kernel_algorithm(
+        $threads_per_block,
+        $blocks_per_grid,
+        $shmem_size,
+        $code_replica,
+        $codes,
+        $code_frequency,
+        $sampling_frequency,
+        $start_code_phase,
+        $prn,
+        $num_samples,
+        $num_of_shifts,
+        $code_length,
+        $partial_sum.re,
+        $partial_sum.im,
+        $carrier_replica.re,
+        $carrier_replica.im,
+        $downconverted_signal.re,
+        $downconverted_signal.im,
+        $signal.re,
+        $signal.im,
+        $correlator_sample_shifts,
+        $carrier_frequency,
+        $carrier_phase,
+        $num_ants,
+        $algorithm
+    )
 end

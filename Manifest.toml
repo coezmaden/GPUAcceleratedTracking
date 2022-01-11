@@ -467,9 +467,9 @@ version = "2.0.0"
 
 [[deps.Hwloc_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "3395d4d4aeb3c9d31f5929d32760d8baeee88aaf"
+git-tree-sha1 = "d8bccde6fc8300703673ef9e1383b11403ac1313"
 uuid = "e33a78d0-f292-5ffc-b300-72abe9b543c8"
-version = "2.5.0+0"
+version = "2.7.0+0"
 
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
@@ -1156,11 +1156,11 @@ version = "0.5.14"
 
 [[deps.Tracking]]
 deps = ["CUDA", "DocStringExtensions", "GNSSSignals", "LinearAlgebra", "LoopVectorization", "StaticArrays", "StructArrays", "TrackingLoopFilters", "Unitful"]
-git-tree-sha1 = "234e0119842bce6b33ee343002359c61f32dbf06"
-repo-rev = "master"
-repo-url = "https://github.com/ozmaden/Tracking.jl#feature/gpu-kernels-comparison"
+git-tree-sha1 = "1d30d6cd16d9159526419c010268b748a24f074b"
+repo-rev = "feature/gpu_kernels_comparison"
+repo-url = "https://github.com/ozmaden/Tracking.jl"
 uuid = "10b2438b-ffd4-5096-aa58-44041d5c8f3b"
-version = "0.14.9"
+version = "0.14.8"
 
 [[deps.TrackingLoopFilters]]
 deps = ["DocStringExtensions", "LinearAlgebra", "Test", "Unitful"]

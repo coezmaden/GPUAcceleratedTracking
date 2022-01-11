@@ -17,7 +17,7 @@ using
     PGFPlotsX
     
 import Unitful: MHz, kHz, Hz, s, ms, dBHz, ustrip, NoUnits
-import Tracking: TrackingState, NumAnts, NumAccumulators, gen_code_replica!
+import Tracking: TrackingState, NumAnts, NumAccumulators
 
 struct KernelAlgorithm{x}
 end
@@ -40,7 +40,14 @@ export
     run_track_benchmark,
     run_kernel_benchmark,
     plot_min_exec_time,
+    gen_code_replica_kernel!,
+    downconvert_and_correlate_kernel_1!,
+    downconvert_and_correlate_kernel_2!,
+    cpu_reduce_partial_sum,
+    cuda_reduce_partial_sum,
     kernel_algorithm,
+
+
     KernelAlgorithm
 
 end
