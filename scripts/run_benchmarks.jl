@@ -8,7 +8,7 @@ allparams = Dict(
     "num_samples" => [2500],
     "num_ants" => [1],
     "num_correlators" => [3],
-    "algorithm" => [2]
+    "algorithm" => [1]
 )
 
 dicts = dict_list(allparams)

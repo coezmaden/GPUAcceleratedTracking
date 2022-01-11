@@ -5,10 +5,9 @@ function cpu_reduce_partial_sum(
 end
 
 function cuda_reduce_partial_sum(
-    partial_sum_re,
-    partial_sum_im
+    partial_sum::StructArray
 )
-    return CUDA.sum(partial_sum_re, dims=1), CUDA.sum(partial_sum_im, dims=1)
+    return CUDA.sum(partial_sum.re, dims=1), CUDA.sum(partial_sum.im, dims=1)
 end
 
 function gen_code_replica_kernel!(
@@ -172,6 +171,55 @@ function downconvert_and_correlate_kernel_2!(
     return nothing
 end
 
+# KERNEL 1
+function kernel_algorithm(
+    threads_per_block,
+    blocks_per_grid,
+    shmem_size,
+    code_replica,
+    codes,
+    code_frequency,
+    sampling_frequency,
+    start_code_phase,
+    prn,
+    num_samples,
+    num_of_shifts,
+    code_length,
+    partial_sum,
+    carrier_replica_re,
+    carrier_replica_im,
+    downconverted_signal_re,
+    downconverted_signal_im,
+    signal_re,
+    signal_im,
+    correlator_sample_shifts,
+    carrier_frequency,
+    carrier_phase,
+    num_ants,
+    num_corrs,
+    algorithm::KernelAlgorithm{1}
+)
+    @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size downconvert_and_correlate_kernel_1!(
+        partial_sum.re,
+        partial_sum.im,
+        signal_re,
+        signal_im,
+        codes,
+        code_frequency,
+        correlator_sample_shifts,
+        carrier_frequency,
+        sampling_frequency,
+        start_code_phase,
+        carrier_phase,
+        code_length,
+        prn,
+        num_samples,
+        num_ants,
+        num_corrs
+    )
+    cuda_reduce_partial_sum(partial_sum)
+end
+
 # KERNEL 2
 function kernel_algorithm(
     threads_per_block,
@@ -186,8 +234,7 @@ function kernel_algorithm(
     num_samples,
     num_of_shifts,
     code_length,
-    partial_sum_re,
-    partial_sum_im,
+    partial_sum,
     carrier_replica_re,
     carrier_replica_im,
     downconverted_signal_re,
@@ -198,6 +245,7 @@ function kernel_algorithm(
     carrier_frequency,
     carrier_phase,
     num_ants,
+    num_corrs,
     algorithm::KernelAlgorithm{2}
 )
     @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_kernel!(
@@ -212,8 +260,8 @@ function kernel_algorithm(
         code_length
     )
     @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] shmem=shmem_size downconvert_and_correlate_kernel_2!(
-        partial_sum_re,
-        partial_sum_im,
+        partial_sum.re,
+        partial_sum.im,
         carrier_replica_re,
         carrier_replica_im,
         downconverted_signal_re,
@@ -228,5 +276,5 @@ function kernel_algorithm(
         num_samples,
         NumAnts(num_ants)
     )
-    cuda_reduce_partial_sum(partial_sum_re, partial_sum_im)
+    cuda_reduce_partial_sum(partial_sum)
 end
