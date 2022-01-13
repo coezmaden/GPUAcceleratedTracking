@@ -3,12 +3,12 @@ using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays
 
 
 allparams = Dict(
-    "processor"   => ["CPU"],
+    "processor"   => ["GPU"],
     "GNSS"  => ["GPSL1"],
-    "num_samples" => [2500],
+    "num_samples" => [5000, 50000, 500000],
     "num_ants" => [1],
     "num_correlators" => [3],
-    "algorithm" => [2]
+    "algorithm" => [1, 2, 3, 4]
 )
 
 dicts = dict_list(allparams)
@@ -21,7 +21,7 @@ dicts = dict_list(allparams)
 for (_, d) in enumerate(dicts)
     benchmark_results = run_kernel_benchmark(d)
     @tagsave(
-        datadir("benchmarks/kernel", savename("KernelBenchmark", d, "jld2")), 
+        datadir("benchmarks/kernel/test", savename("KernelBenchmark", d, "jld2")), 
         benchmark_results
     )
 end
