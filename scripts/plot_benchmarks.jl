@@ -1,4 +1,4 @@
-using DrWatson
+using DrWatson, PrettyTables, Query, DataFrames
 @quickactivate "GPUAcceleratedTracking"
 
 # Generate params for signals
@@ -12,3 +12,6 @@ df = collect_results(datadir("benchmarks/kernel/test"))
 
 plot_min_exec_time(df)
 plot_min_exec_time(df, num_ants = 16, num_correlators = 7)
+
+simple_data = df  |> @map({_.processor, _.algorithm, _.num_samples, _.num_ants, _.num_correlators, _.TrialObj}) |> @orderby_descending({_.num_samples}) |> DataFrame
+df_pretty = pretty_table(simple_data)

@@ -29,4 +29,6 @@ everything should work out of the box, including correctly finding local paths.
 | 2      | Three kernels, code replica generation seperate, two reductions with Harris#3  |
 | 3      | Three kernels, code replica generation seperate, texture memory for code repl  |
 | 4      | Two kernels, c+d&c, texture memory for code repl                               |
+| 5      | Three kernels, code replica generation seperate, two reductions with Harris#4  |
+
 
