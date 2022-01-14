@@ -1,5 +1,7 @@
-# julia --project=. /scripts/nsys.jl
-# nsys launch julia /path/to/nsys.jl
+# nvprof --profile-from-start off julia /path/to/ncu.jl
+# or
+# ncu --mode=launch julia /path/to/ncu.jl
+
 using GPUAcceleratedTracking, CUDA, Tracking, GNSSSignals, StructArrays
 import Tracking: Hz, ms
 
@@ -47,59 +49,27 @@ blocks_per_grid = cld.(num_samples, threads_per_block)
 partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts)))))
 shmem_size = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
 
-kernel_algorithm(
-        threads_per_block,
-        blocks_per_grid,
-        shmem_size,
-        code_replica,
-        codes,
-        code_frequency,
-        sampling_frequency,
-        start_code_phase,
-        prn,
-        num_samples,
-        num_of_shifts,
-        code_length,
-        partial_sum,
-        carrier_replica.re,
-        carrier_replica.im,
-        downconverted_signal.re,
-        downconverted_signal.im,
-        signal.re,
-        signal.im,
-        correlator_sample_shifts,
-        carrier_frequency,
-        carrier_phase,
-        num_ants,
-        nothing,
-        algorithm
-)
+@cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_kernel!(
+            code_replica,
+            codes,
+            code_frequency,
+            sampling_frequency,
+            start_code_phase,
+            prn,
+            num_samples,
+            num_of_shifts,
+            code_length
+        )
 CUDA.@profile NVTX.@range "kernel_algorithm" begin
-    kernel_algorithm(
-        threads_per_block,
-        blocks_per_grid,
-        shmem_size,
-        code_replica,
-        codes,
-        code_frequency,
-        sampling_frequency,
-        start_code_phase,
-        prn,
-        num_samples,
-        num_of_shifts,
-        code_length,
-        partial_sum,
-        carrier_replica.re,
-        carrier_replica.im,
-        downconverted_signal.re,
-        downconverted_signal.im,
-        signal.re,
-        signal.im,
-        correlator_sample_shifts,
-        carrier_frequency,
-        carrier_phase,
-        num_ants,
-        nothing,
-        algorithm
-    )
+    @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_kernel!(
+            code_replica,
+            codes,
+            code_frequency,
+            sampling_frequency,
+            start_code_phase,
+            prn,
+            num_samples,
+            num_of_shifts,
+            code_length
+        )
 end

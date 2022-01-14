@@ -1,14 +1,13 @@
 using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays
 @quickactivate "GPUAcceleratedTracking"
 
-
 allparams = Dict(
     "processor"   => ["GPU"],
     "GNSS"  => ["GPSL1"],
     "num_samples" => [5000, 50000, 500000],
     "num_ants" => [1],
     "num_correlators" => [3],
-    "algorithm" => [5]
+    "algorithm" => [1, 2, 3, 4, 5, 6]
 )
 
 dicts = dict_list(allparams)

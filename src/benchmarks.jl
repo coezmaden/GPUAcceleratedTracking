@@ -408,6 +408,73 @@ function _run_kernel_benchmark(
     )
 end
 
+# GPU Kernel Benchmark for KernelAlgorithm 6
+function _run_kernel_benchmark(
+    gnss,
+    enable_gpu::Val{true},
+    num_samples,
+    num_ants,
+    num_correlators,
+    algorithm::KernelAlgorithm{6}
+)   
+    # Generate GNSS object and signal information
+    system = gnss(use_gpu = enable_gpu)
+    codes = CuTexture(CuTextureArray(system.codes))
+    code_frequency = get_code_frequency(system)
+    code_length = get_code_length(system)
+    start_code_phase = 0.0f0
+    carrier_phase = 0.0f0
+    carrier_frequency = 1500Hz
+    prn = 1
+
+    # Generate the signal
+    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants = NumAnts(num_ants), start_code_phase = start_code_phase, start_carrier_phase = carrier_phase)
+    
+    # Generate correlator
+    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
+    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
+    num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
+
+    # Generate blank code and carrier replica, and downconverted signal
+    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
+    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
+    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
+
+    # Generate CUDA kernel tuning parameters
+    threads_per_block = [1024, 512÷2] # launch reduction with half the threads
+    blocks_per_grid = cld.(num_samples, threads_per_block)
+    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts)))))
+    shmem_size = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
+
+    @benchmark CUDA.@sync kernel_algorithm(
+        $threads_per_block,
+        $blocks_per_grid,
+        $shmem_size,
+        $code_replica,
+        $codes,
+        $code_frequency,
+        $sampling_frequency,
+        $start_code_phase,
+        $prn,
+        $num_samples,
+        $num_of_shifts,
+        $code_length,
+        $partial_sum,
+        $carrier_replica.re,
+        $carrier_replica.im,
+        $downconverted_signal.re,
+        $downconverted_signal.im,
+        $signal.re,
+        $signal.im,
+        $correlator_sample_shifts,
+        $carrier_frequency,
+        $carrier_phase,
+        $num_ants,
+        nothing,
+        $algorithm
+    )
+end
+
 function run_kernel_benchmark(benchmark_params::Dict)
     @unpack GNSS, num_samples, num_ants, num_correlators, processor, algorithm = benchmark_params
     enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
