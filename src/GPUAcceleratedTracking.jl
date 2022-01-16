@@ -44,6 +44,7 @@ export
     gen_code_replica_strided_kernel!,
     gen_code_replica_texture_mem_kernel!,
     gen_code_replica_texture_mem_strided_kernel!,
+    downconvert_strided_kernel!,
     downconvert_and_correlate_kernel_1!,
     downconvert_and_correlate_kernel_2!,
     downconvert_and_correlate_kernel_3!,

@@ -673,6 +673,8 @@ function downconvert_and_correlate_kernel_6!(
         for antenna_idx = 1:NANT
             downconverted_signal_re[sample_idx, antenna_idx] = signal_re[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] + signal_im[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
             downconverted_signal_im[sample_idx, antenna_idx] = signal_im[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] - signal_re[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
+            downconverted_signal_re[sample_idx + threads_per_block, antenna_idx] = signal_re[sample_idx + threads_per_block, antenna_idx] * carrier_replica_re[sample_idx + threads_per_block] + signal_im[sample_idx + threads_per_block, antenna_idx] * carrier_replica_im[sample_idx] 
+            downconverted_signal_im[sample_idx + threads_per_block, antenna_idx] = signal_im[sample_idx + threads_per_block, antenna_idx] * carrier_replica_re[sample_idx + threads_per_block] - signal_re[sample_idx + threads_per_block, antenna_idx] * carrier_replica_im[sample_idx]
             for corr_idx = 1:NCOR
                 sample_shift = correlator_sample_shifts[corr_idx] - correlator_sample_shifts[1]
                 # write to shared memory cache
@@ -727,6 +729,34 @@ function downconvert_and_correlate_kernel_6!(
             end
         end
     end
+    return nothing
+end
+
+function downconvert_strided_kernel!(
+    carrier_replica_re,
+    carrier_replica_im,
+    downconverted_signal_re,
+    downconverted_signal_im,
+    signal_re,
+    signal_im,
+    carrier_frequency,
+    sampling_frequency,
+    carrier_phase,
+    num_samples::Int,
+    num_ants::NumAnts{NANT}
+) where NANT
+    stride = blockDim().x * gridDim().x
+    thread_idx = 1 + ((blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1))
+    
+    for sample_idx = thread_idx:stride:num_samples
+        carrier_replica_im[sample_idx], carrier_replica_re[sample_idx] = CUDA.sincos(2π * ((sample_idx - 1) * carrier_frequency / sampling_frequency + carrier_phase))
+
+        for antenna_idx = 1:NANT 
+            downconverted_signal_re[sample_idx, antenna_idx] = signal_re[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] + signal_im[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
+            downconverted_signal_im[sample_idx, antenna_idx] = signal_im[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] - signal_re[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
+        end
+    end
+
     return nothing
 end
 

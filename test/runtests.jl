@@ -1,7 +1,9 @@
 using
     Test,
     Tracking,
-    GNSSSignals
+    GNSSSignals,
+    CUDA,
+    StructArrays
 
 import Tracking: Hz, ms
 
