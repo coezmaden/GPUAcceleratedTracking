@@ -13,7 +13,6 @@ using
     DataFrames,
     Query,
     Plots,
-    StatsPlots,
     PGFPlotsX
     
 import Unitful: MHz, kHz, Hz, s, ms, dBHz, ustrip, NoUnits
