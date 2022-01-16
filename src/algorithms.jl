@@ -84,6 +84,49 @@ function gen_code_replica_kernel!(
     return nothing   
 end
 
+function gen_code_replica_strided_kernel!(
+    code_replica,
+    codes,
+    code_frequency,
+    sampling_frequency,
+    start_code_phase,
+    prn,
+    num_samples,
+    num_of_shifts,
+    code_length
+)   
+    # thread_idx goes from 1:2502
+    # sample_idx converted to -1:2500 -> [-1 0 +1]
+    stride = blockDim().x * gridDim().x
+    thread_idx = 1 + ((blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1))
+    for i = thread_idx:stride:num_samples+num_of_shifts
+        @inbounds code_replica[i] = codes[1+mod(floor(Int32, code_frequency/sampling_frequency * (i - num_of_shifts) + start_code_phase), code_length), prn]
+    end
+    
+    return nothing   
+end
+
+function gen_code_replica_texture_mem_kernel!(
+    code_replica,
+    codes, # texture memory codes
+    code_frequency,
+    sampling_frequency,
+    start_code_phase,
+    prn,
+    num_samples,
+    num_of_shifts,
+    code_length
+)   
+    # thread_idx goes from 1:2502
+    # sample_idx converted to -1:2500 -> [-1 0 +1]
+    thread_idx = 1 + ((blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1))
+    if thread_idx <= num_samples + num_of_shifts
+        code_replica[thread_idx] = codes[(code_frequency/sampling_frequency * (thread_idx - num_of_shifts) + start_code_phase) / code_length, prn]
+    end
+    
+    return nothing   
+end
+
 function downconvert_and_correlate_kernel_1!(
     res_re,
     res_im,
