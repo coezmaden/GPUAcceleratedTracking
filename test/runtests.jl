@@ -1,4 +1,5 @@
 using
+    GPUAcceleratedTracking,
     Test,
     Tracking,
     GNSSSignals,

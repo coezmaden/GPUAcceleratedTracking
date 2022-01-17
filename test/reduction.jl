@@ -47,8 +47,10 @@
             size(accum, 1)
         )
     end
-    accum_true = ComplexF32[num_samples num_samples num_samples]
-    @test Array(accum)[1, :, :,] ≈ accum_true
+    CUDA.@allowscalar begin
+        accum_true = ComplexF32[num_samples num_samples num_samples]
+        @test Array(accum)[1, :, :,] ≈ accum_true
+    end
     # @benchmark CUDA.@sync begin
     #     for corr_idx = 1:$num_correlators
     #         # re samples
@@ -120,8 +122,10 @@ end
             size(accum, 1)
         )
     end
-    accum_true = ComplexF32[num_samples num_samples num_samples]
-    @test Array(accum)[1, :, :,] ≈ accum_true
+    CUDA.@allowscalar begin
+        accum_true = ComplexF32[num_samples num_samples num_samples]
+        @test Array(accum)[1, :, :,] ≈ accum_true
+    end
     # @benchmark CUDA.@sync begin
     #     for corr_idx = 1:$num_correlators
     #         @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_cplx_3(
@@ -183,8 +187,10 @@ end
         NumAnts(num_ants),
         correlator_sample_shifts
     )
-    accum_true = ComplexF32[num_samples num_samples num_samples]
-    @test Array(accum)[1, :, :,] ≈ accum_true
+    CUDA.@allowscalar begin
+        accum_true = ComplexF32[num_samples num_samples num_samples]
+        @test Array(accum)[1, :, :,] ≈ accum_true
+    end
     # @benchmark CUDA.@sync begin
     #     @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_cplx_multi_3(
     #         $accum.re,
@@ -257,8 +263,10 @@ end
             size(accum, 1)
         )
     end
-    accum_true = ComplexF32[num_samples num_samples num_samples]
-    @test Array(accum)[1, :, :,] ≈ accum_true
+    CUDA.@allowscalar begin
+        accum_true = ComplexF32[num_samples num_samples num_samples]
+        @test Array(accum)[1, :, :,] ≈ accum_true
+    end
     # @benchmark CUDA.@sync begin
     #     for corr_idx = 1:$num_correlators
     #         # re samples
@@ -329,8 +337,10 @@ end
             view(accum.im, :, :, corr_idx),
         )
     end
-    accum_true = ComplexF32[num_samples num_samples num_samples]
-    @test Array(accum)[1, :, :,] ≈ accum_true
+    CUDA.@allowscalar begin
+        accum_true = ComplexF32[num_samples num_samples num_samples]
+        @test Array(accum)[1, :, :,] ≈ accum_true
+    end
     # @benchmark CUDA.@sync begin
     #     for corr_idx = 1:$num_correlators
     #         @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_cplx_4(
@@ -391,8 +401,10 @@ end
         NumAnts(num_ants),
         correlator_sample_shifts
     )
-    accum_true = ComplexF32[num_samples num_samples num_samples]
-    @test Array(accum)[1, :, :,] ≈ accum_true
+    CUDA.@allowscalar begin
+        accum_true = ComplexF32[num_samples num_samples num_samples]
+        @test Array(accum)[1, :, :,] ≈ accum_true
+    end
     # @benchmark CUDA.@sync begin
     #     @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size reduce_cplx_multi_4(
     #         $accum.re,

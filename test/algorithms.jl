@@ -41,9 +41,11 @@
         num_ants,
         num_correlators
     )
-    accumulators = vec(sum(Array(partial_sum), dims=1))
-    accumulators_true = ComplexF32.([1476.0f0; 2500.0f0; 1476.0f0])
-    @test accumulators ≈ accumulators_true
+    CUDA.@allowscalar begin 
+        accumulators = vec(sum(Array(partial_sum), dims=1))
+        accumulators_true = ComplexF32.([1476.0f0; 2500.0f0; 1476.0f0])
+        @test accumulators ≈ accumulators_true
+    end
 end
 
 @testset "Kernel Algorithm #2" begin
@@ -66,11 +68,11 @@ end
     code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
     carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
     downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
-    threads_per_block = [1024, 512]
+    threads_per_block = [512, 256]
     blocks_per_grid = cld.(num_samples, threads_per_block)
     partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts)))))
     shmem_size = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
-    @cuda threads=1024 blocks=6 gen_code_replica_strided_kernel!(
+    @cuda threads=512 blocks=6 gen_code_replica_strided_kernel!(
             code_replica,
             codes,
             code_frequency,
@@ -98,13 +100,15 @@ end
         num_samples,
         NumAnts(num_ants)
     )
-    accumulators = vec(sum(Array(partial_sum), dims=1))
-    accumulators_true = ComplexF32.([1476.0f0; 2500.0f0; 1476.0f0])
-    @test accumulators ≈ accumulators_true
+    CUDA.@allowscalar begin 
+        accumulators = vec(sum(Array(partial_sum), dims=1))
+        accumulators_true = ComplexF32.([1476.0f0; 2500.0f0; 1476.0f0])
+        @test accumulators ≈ accumulators_true
+    end
 end
 
 
-@tetsset "Downconvert Kernel" begin
+@testset "Downconvert Kernel" begin
     enable_gpu = Val(true)
     num_samples = 2500
     num_ants = 1
@@ -120,7 +124,7 @@ end
     carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
     downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
     code_replica = CUDA.zeros(Float32, num_samples + 2)
-    @cuda threads=1024 blocks=6 gen_code_replica_strided_kernel!(
+    @cuda threads=512 blocks=6 gen_code_replica_strided_kernel!(
                 code_replica,
                 codes,
                 code_frequency,
@@ -158,7 +162,9 @@ end
         num_samples,
         NumAnts(num_ants)
     ) 
-    @test Array(downconverted_signal) ≈ ones(ComplexF32, num_samples) .* Array(code_replica)[2:2501]
+    CUDA.@allowscalar begin
+        @test Array(downconverted_signal) ≈ ones(ComplexF32, num_samples) .* Array(code_replica)[2:2501]
+    end
 end
 
 @testset "Downconvert and Accumulate Kernel" begin
@@ -188,7 +194,7 @@ end
         )
     )
     code_replica = CUDA.zeros(Float32, num_samples + 2)
-    @cuda threads=1024 blocks=6 gen_code_replica_strided_kernel!(
+    @cuda threads=512 blocks=6 gen_code_replica_strided_kernel!(
                 code_replica,
                 codes,
                 code_frequency,
@@ -234,10 +240,12 @@ end
         NumAnts(num_ants),
         correlator_sample_shifts
     )
-    ϕ_hat = vec(sum(Array(accum), dims=1))
-    ϕ = ComplexF32.([1476.0f0; 2500.0f0; 1476.0f0])
-    @test Array(accum)[:, :, 2] ≈ ones(ComplexF32, num_samples)
-    @test ϕ_hat ≈ ϕ
+    CUDA.@allowscalar begin
+        ϕ_hat = vec(sum(Array(accum), dims=1))
+        ϕ = ComplexF32.([1476.0f0; 2500.0f0; 1476.0f0])
+        @test Array(accum)[:, :, 2] ≈ ones(ComplexF32, num_samples)
+        @test ϕ_hat ≈ ϕ
+    end
     # @benchmark CUDA.@sync @cuda threads=$threads blocks=$blocks $downconvert_and_accumulate_strided_kernel!(
     #     $accum.re,
     #     $accum.im,
