@@ -10,59 +10,6 @@ function cuda_reduce_partial_sum(
     return CUDA.sum(partial_sum.re, dims=1), CUDA.sum(partial_sum.im, dims=1)
 end
 
-function reduce_block!(
-    gmem_sum,
-    input
-)
-    # define needed incides
-    threads_per_block = blockDim().x  
-    thread_idx  = threadIdx().x
-    # launched with half the threads -> double the amount
-    idx = thread_idx 
-    
-    # allocate the shared memory for the partial sum
-    shmem_sum = @cuDynamicSharedMem(Float32, threads_per_block)
-    @inbounds shmem_sum[thread_idx] = 0
-
-    # each thread loads one element from global to shared memory
-    # AND
-    # does the first level of reduction
-    @inbounds if idx + threads_per_block < length(input)
-        shmem_sum[thread_idx] = input[idx] + input[idx + threads_per_block]
-    end
-
-    # wait until all finished
-    sync_threads() 
-
-    # do reduction in shared memory
-    s::UInt32 = threads_per_block ÷ 2
-    @inbounds while s > 32
-        sync_threads()
-        if thread_idx <= s
-            shmem_sum[thread_idx] += shmem_sum[thread_idx + s]
-        end
-        
-        s ÷= 2
-    end
-    
-    # do warp reduction once tree size = warpsize
-    @inbounds if thread_idx <= 32
-        @inbounds shmem_sum[thread_idx] += shmem_sum[thread_idx - 1 + 32]
-        @inbounds shmem_sum[thread_idx] += shmem_sum[thread_idx - 1 + 16]
-        @inbounds shmem_sum[thread_idx] += shmem_sum[thread_idx - 1 + 8]
-        @inbounds shmem_sum[thread_idx] += shmem_sum[thread_idx - 1 + 4]
-        @inbounds shmem_sum[thread_idx] += shmem_sum[thread_idx - 1 + 2]
-        @inbounds shmem_sum[thread_idx] += shmem_sum[thread_idx - 1 + 1]
-    end
-
-    # first thread returns the result of reduction to global memory
-    @inbounds if thread_idx == 1
-        gmem_sum[1] += shmem_sum[1]
-    end
-
-    return nothing
-end
-
 function gen_code_replica_kernel!(
     code_replica,
     codes,
@@ -800,42 +747,52 @@ function downconvert_and_accumulate_strided_kernel!(
     return nothing
 end
 
-# function accumulate_strided_kernel!(
-#     accum_re,
-#     accum_im,
-#     downconverted_signal_re,
-#     downconverted_signal_im,
-#     code_replica,
-#     correlator_sample_shifts::SVector{NCOR, Int64},
-#     num_samples::Int,
-#     num_ants::NumAnts{NANT}
-# )  where {NCOR, NANT}
-#     # cache = @cuDynamicSharedMem(Float32, (2 * blockDim().x, NANT, NCOR))
-#     threads_per_block = iq_offset = blockDim().x
-#     stride = threads_per_block * gridDim().x
-#     thread_idx = 1 + ((blockIdx().x - 1) * threads_per_block + (threadIdx().x - 1))
-#     cache_index = threadIdx().x - 1
+# Complex reduction per Harris #3
+function reduce_cplx_3(
+    accum_re,
+    accum_im,
+    input_re,
+    input_im,
+    num_samples,
+)
+    # define needed incides
+    threads_per_block = iq_offset = blockDim().x
+    block_idx = blockIdx().x
+    thread_idx = threadIdx().x
+    sample_idx = (block_idx - 1) * threads_per_block + thread_idx
 
-#     @inbounds for sample_idx = thread_idx:stride:num_samples
-#         for antenna_idx = 1:NANT
-#             for corr_idx = 1:NCOR
-#                 sample_shift = correlator_sample_shifts[corr_idx] - correlator_sample_shifts[1]
-#                 # write to shared memory cache
-#                 cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] += code_replica[sample_idx + sample_shift] * downconverted_signal_re[sample_idx, antenna_idx] + code_replica[sample_idx + threads_per_block + sample_shift] * downconverted_signal_re[sample_idx + threads_per_block, antenna_idx]
-#                 cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] += code_replica[sample_idx + sample_shift] * downconverted_signal_im[sample_idx, antenna_idx] + code_replica[sample_idx + threads_per_block + sample_shift] * downconverted_signal_im[sample_idx + threads_per_block, antenna_idx]
-#             end
-#         end
-#     end
-    
-#     for antenna_idx = 1:NANT
-#         for corr_idx = 1:NCOR
-#             CUDA.@atomic accum_re[antenna_idx, corr_idx] += cache[sample_idx]
-#             CUDA.@atomic accum_im[antenna_idx, corr_idx] += 
-#         end
-#     end
+    # allocate the shared memory for the partial sum
+    shmem = @cuDynamicSharedMem(Float32, (2 * threads_per_block))
 
-#     return nothing
-# end
+    # each thread loads one element from global to shared memory
+    if sample_idx <= num_samples
+        shmem[thread_idx + 0 * iq_offset] = input_re[sample_idx]
+        shmem[thread_idx + 1 * iq_offset] = input_im[sample_idx]
+    end
+
+    # wait until all finished
+    sync_threads() 
+
+    # do (partial) reduction in shared memory
+    s::UInt32 = threads_per_block ÷ 2
+    while s != 0 
+        sync_threads()
+        if thread_idx - 1 < s
+            shmem[thread_idx + 0 * iq_offset] += shmem[thread_idx + 0 * iq_offset + s]
+            shmem[thread_idx + 1 * iq_offset] += shmem[thread_idx + 1 * iq_offset + s]
+        end
+        
+        s ÷= 2
+    end
+
+    # first thread returns the result of reduction to global memory
+    if thread_idx == 1
+        accum_re[blockIdx().x] = shmem[1 + 0 * iq_offset]
+        accum_im[blockIdx().x] = shmem[1 + 1 * iq_offset]
+    end
+
+    return nothing
+end
 
 # KERNEL 1
 function kernel_algorithm(
