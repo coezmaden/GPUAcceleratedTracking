@@ -280,28 +280,30 @@ function reduce_cplx_multi_4(
     i = (blockIdx().x - 1) * (blockDim().x * 2) + threadIdx().x 
     
     # allocate the shared memory for the partial sum
-    shmem = @cuDynamicSharedMem(Float32, 2 * blockDim().x)
+    shmem = @cuDynamicSharedMem(Float32, (2 * blockDim().x, NANT, NCOR))
     # wipe values
-    shmem[tid + 0 * blockDim().x] = 0.0f0
-    shmem[tid + 1 * blockDim().x] = 0.0f0
-    
-    # local sum variable
-    mysum_re = mysum_im = 0.0f0
-
+    for antenna_idx = 1:NANT
+        for corr_idx = 1:NCOR
+            shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] = 0.0f0
+            shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] = 0.0f0
+        end
+    end
+   
     # each thread loads one element from global to shared memory
     # AND
     # does the first level of reduction
-    if i <= length(input_re)
-        mysum_re = input_re[i]
-        mysum_im = input_im[i]
-        
-        if i + blockDim().x <= length(input_re)
-            mysum_re += input_re[i + blockDim().x]
-            mysum_im += input_im[i + blockDim().x]
+    if i <= num_samples
+        for antenna_idx = 1:NANT
+            for corr_idx = 1:NCOR
+                shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] = input_re[i, antenna_idx, corr_idx]
+                shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] = input_im[i, antenna_idx, corr_idx]
+                
+                if i + blockDim().x <= num_samples
+                    shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] += input_re[i + blockDim().x, antenna_idx, corr_idx]
+                    shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] += input_im[i + blockDim().x, antenna_idx, corr_idx]
+                end
+            end
         end
-
-        shmem[tid + 0 * blockDim().x] = mysum_re
-        shmem[tid + 1 * blockDim().x] = mysum_im
     end
 
     # wait until all finished
@@ -312,8 +314,12 @@ function reduce_cplx_multi_4(
     while s != 0 
         sync_threads()
         if tid - 1 < s
-            shmem[tid + 0 * blockDim().x] += shmem[tid + s + 0 * blockDim().x]
-            shmem[tid + 1 * blockDim().x] += shmem[tid + s + 1 * blockDim().x]
+            for antenna_idx = 1:NANT
+                for corr_idx = 1:NCOR
+                    shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + s + 0 * blockDim().x, antenna_idx, corr_idx]
+                    shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + s + 1 * blockDim().x, antenna_idx, corr_idx]
+                end
+            end
         end
         
         s ÷= 2
@@ -321,8 +327,12 @@ function reduce_cplx_multi_4(
 
     # first thread returns the result of reduction to global memory
     if tid == 1
-        accum_re[blockIdx().x] = shmem[1 + 0 * blockDim().x]
-        accum_im[blockIdx().x] = shmem[1 + 1 * blockDim().x]
+        for antenna_idx = 1:NANT
+            for corr_idx = 1:NCOR
+            accum_re[blockIdx().x, antenna_idx, corr_idx] = shmem[1 + 0 * blockDim().x, antenna_idx, corr_idx]
+            accum_im[blockIdx().x, antenna_idx, corr_idx] = shmem[1 + 1 * blockDim().x, antenna_idx, corr_idx]
+            end
+        end
     end
 
     return nothing
