@@ -760,6 +760,83 @@ function downconvert_strided_kernel!(
     return nothing
 end
 
+function downconvert_and_accumulate_strided_kernel!(
+    accum_re,
+    accum_im,
+    code_replica,
+    carrier_replica_re,
+    carrier_replica_im,
+    downconverted_signal_re,
+    downconverted_signal_im,
+    signal_re,
+    signal_im,
+    carrier_frequency,
+    sampling_frequency,
+    carrier_phase,
+    num_samples::Int,
+    num_ants::NumAnts{NANT},
+    correlator_sample_shifts::SVector{NCOR, Int64}
+) where {NANT, NCOR}
+    stride = blockDim().x * gridDim().x
+    thread_idx = 1 + ((blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1))
+    
+    for sample_idx = thread_idx:stride:num_samples
+        # gen carrier replica
+        carrier_replica_im[sample_idx], carrier_replica_re[sample_idx] = CUDA.sincos(2π * ((sample_idx - 1) * carrier_frequency / sampling_frequency + carrier_phase))
+
+        for antenna_idx = 1:NANT
+            # downconvert
+            downconverted_signal_re[sample_idx, antenna_idx] = signal_re[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] + signal_im[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
+            downconverted_signal_im[sample_idx, antenna_idx] = signal_im[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] - signal_re[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
+            for corr_idx = 1:NCOR
+                # accumulate
+                shift = correlator_sample_shifts[corr_idx] - correlator_sample_shifts[1]
+                accum_re[sample_idx, antenna_idx, corr_idx] = downconverted_signal_re[sample_idx, antenna_idx] * code_replica[sample_idx + shift]
+                accum_im[sample_idx, antenna_idx, corr_idx] = downconverted_signal_im[sample_idx, antenna_idx] * code_replica[sample_idx + shift]
+            end
+        end
+    end
+
+    return nothing
+end
+
+# function accumulate_strided_kernel!(
+#     accum_re,
+#     accum_im,
+#     downconverted_signal_re,
+#     downconverted_signal_im,
+#     code_replica,
+#     correlator_sample_shifts::SVector{NCOR, Int64},
+#     num_samples::Int,
+#     num_ants::NumAnts{NANT}
+# )  where {NCOR, NANT}
+#     # cache = @cuDynamicSharedMem(Float32, (2 * blockDim().x, NANT, NCOR))
+#     threads_per_block = iq_offset = blockDim().x
+#     stride = threads_per_block * gridDim().x
+#     thread_idx = 1 + ((blockIdx().x - 1) * threads_per_block + (threadIdx().x - 1))
+#     cache_index = threadIdx().x - 1
+
+#     @inbounds for sample_idx = thread_idx:stride:num_samples
+#         for antenna_idx = 1:NANT
+#             for corr_idx = 1:NCOR
+#                 sample_shift = correlator_sample_shifts[corr_idx] - correlator_sample_shifts[1]
+#                 # write to shared memory cache
+#                 cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] += code_replica[sample_idx + sample_shift] * downconverted_signal_re[sample_idx, antenna_idx] + code_replica[sample_idx + threads_per_block + sample_shift] * downconverted_signal_re[sample_idx + threads_per_block, antenna_idx]
+#                 cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] += code_replica[sample_idx + sample_shift] * downconverted_signal_im[sample_idx, antenna_idx] + code_replica[sample_idx + threads_per_block + sample_shift] * downconverted_signal_im[sample_idx + threads_per_block, antenna_idx]
+#             end
+#         end
+#     end
+    
+#     for antenna_idx = 1:NANT
+#         for corr_idx = 1:NCOR
+#             CUDA.@atomic accum_re[antenna_idx, corr_idx] += cache[sample_idx]
+#             CUDA.@atomic accum_im[antenna_idx, corr_idx] += 
+#         end
+#     end
+
+#     return nothing
+# end
+
 # KERNEL 1
 function kernel_algorithm(
     threads_per_block,

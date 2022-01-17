@@ -160,3 +160,79 @@ end
     ) 
     @test Array(downconverted_signal) ≈ ones(ComplexF32, num_samples) .* Array(code_replica)[2:2501]
 end
+
+@testset "Downconvert and Accumulate Kernel" begin
+    enable_gpu = Val(true)
+    num_samples = 2500
+    num_ants = 1
+    num_correlators = 3
+    system = GPSL1(use_gpu = enable_gpu)
+    codes = system.codes
+    code_frequency = get_code_frequency(system)
+    code_length = get_code_length(system)
+    start_code_phase = 0.0f0
+    carrier_phase = 0.0f0
+    carrier_frequency = 1500Hz
+    prn = 1
+    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants = NumAnts(num_ants), start_code_phase = start_code_phase, start_carrier_phase = carrier_phase)
+    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
+    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
+    num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
+    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
+    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
+    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
+    accum = StructArray{ComplexF32}(
+        (
+        CUDA.zeros(Float32, (num_samples, num_ants, num_correlators)),
+        CUDA.zeros(Float32, (num_samples, num_ants, num_correlators))
+        )
+    )
+    code_replica = CUDA.zeros(Float32, num_samples + 2)
+    @cuda threads=1024 blocks=6 gen_code_replica_strided_kernel!(
+                code_replica,
+                codes,
+                code_frequency,
+                sampling_frequency,
+                start_code_phase,
+                prn,
+                num_samples,
+                2,
+                code_length
+    )
+    kernel = @cuda launch=false downconvert_and_accumulate_strided_kernel!(
+        accum.re,
+        accum.im,
+        code_replica,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        carrier_frequency,
+        sampling_frequency,
+        carrier_phase,
+        num_samples,
+        NumAnts(num_ants),
+        correlator_sample_shifts
+    )
+    blocks, threads = launch_configuration(kernel.fun)
+    @cuda threads=threads blocks=blocks downconvert_and_accumulate_strided_kernel!(
+        accum.re,
+        accum.im,
+        code_replica,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        carrier_frequency,
+        sampling_frequency,
+        carrier_phase,
+        num_samples,
+        NumAnts(num_ants),
+        correlator_sample_shifts
+    )
+    @test Array(accum)[:, :, 2] ≈ ones(ComplexF32, num_samples)
+end
