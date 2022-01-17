@@ -34,6 +34,7 @@ include("algorithms.jl")
 include("gen_signal.jl")
 include("benchmarks.jl")
 include("plots.jl")
+include("results.jl")
 
 export 
     gen_signal, 
