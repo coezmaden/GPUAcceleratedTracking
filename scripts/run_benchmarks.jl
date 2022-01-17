@@ -4,10 +4,10 @@ using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays
 allparams = Dict(
     "processor"   => ["GPU"],
     "GNSS"  => ["GPSL1"],
-    "num_samples" => [5000, 50000, 500000],
+    "num_samples" => collect(2500:2500:50000),
     "num_ants" => [1],
     "num_correlators" => [3],
-    "algorithm" => [7]
+    "algorithm" => [1, 2, 3, 4, 5, 6, 7]
 )
 
 dicts = dict_list(allparams)
