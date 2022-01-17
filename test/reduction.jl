@@ -221,7 +221,6 @@ end
             view(input.im, :, :, corr_idx),
         )
     end
-    Array(accum) # POTENTIAL BUG? without this, this test fails
     for corr_idx = 1:num_correlators
         @cuda threads=threads_per_block blocks=1 shmem=shmem_size reduce_cplx_4(
             view(accum.re, :, :, corr_idx),
@@ -230,8 +229,6 @@ end
             view(accum.im, :, :, corr_idx),
         )
     end
-    accum = Array(accum) # POTENTIAL BUG? without this, this test fails
     accum_true = ComplexF32[num_samples num_samples num_samples]
     @test Array(accum)[1, :, :,] ≈ accum_true
-    # @test accum[1, :, :,] ≈ accum_true
 end
