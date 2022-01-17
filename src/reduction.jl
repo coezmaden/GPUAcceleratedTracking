@@ -151,3 +151,114 @@ function reduce_cplx_multi_3(
 
     return nothing
 end
+
+# Reduction per Harris #4
+function reduce_4(
+    accum,
+    input,
+    num_samples
+)
+    ## define needed incides
+    # local thread index
+    tid = threadIdx().x 
+    # global thread index
+    i = (blockIdx().x - 1) * (blockDim().x * 2) + threadIdx().x 
+    
+    # allocate the shared memory for the partial sum
+    shmem = @cuDynamicSharedMem(Float32, blockDim().x)
+    
+    # local sum variable
+    mysum = 0.0f0
+
+    # each thread loads one element from global to shared memory
+    # AND
+    # does the first level of reduction
+    if i <= length(input)
+        mysum = input[i]
+        if i + blockDim().x <= length(input)
+            mysum += input[i + blockDim().x]
+        end
+
+        shmem[tid] = mysum
+    end
+
+    # wait until all finished
+    sync_threads() 
+
+    # do (partial) reduction in shared memory
+    s::UInt32 = blockDim().x ÷ 2
+    while s != 0 
+        sync_threads()
+        if tid - 1 < s
+            shmem[tid] += shmem[tid + s]
+        end
+        
+        s ÷= 2
+    end
+
+    # first thread returns the result of reduction to global memory
+    if tid == 1
+        accum[blockIdx().x] = shmem[1]
+    end
+
+    return nothing
+end
+
+# Complex reduction per Harris #4
+function reduce_cplx_4(
+    accum_re,
+    accum_im,
+    input_re,
+    input_im
+)
+    ## define needed incides
+    # local thread index
+    tid = threadIdx().x 
+    # global thread index
+    i = (blockIdx().x - 1) * (blockDim().x * 2) + threadIdx().x 
+    
+    # allocate the shared memory for the partial sum
+    shmem = @cuDynamicSharedMem(Float32, 2 * blockDim().x)
+    
+    # local sum variable
+    mysum_re = mysum_im = 0.0f0
+
+    # each thread loads one element from global to shared memory
+    # AND
+    # does the first level of reduction
+    if i <= length(input_re)
+        mysum_re = input_re[i]
+        mysum_im = input_im[i]
+        
+        if i + blockDim().x <= length(input_re)
+            mysum_re += input_re[i + blockDim().x]
+            mysum_im += input_im[i + blockDim().x]
+        end
+
+        shmem[tid + 0 * blockDim().x] = mysum_re
+        shmem[tid + 1 * blockDim().x] = mysum_im
+    end
+
+    # wait until all finished
+    sync_threads() 
+
+    # do (partial) reduction in shared memory
+    s::UInt32 = blockDim().x ÷ 2
+    while s != 0 
+        sync_threads()
+        if tid - 1 < s
+            shmem[tid + 0 * blockDim().x] += shmem[tid + s + 0 * blockDim().x]
+            shmem[tid + 1 * blockDim().x] += shmem[tid + s + 1 * blockDim().x]
+        end
+        
+        s ÷= 2
+    end
+
+    # first thread returns the result of reduction to global memory
+    if tid == 1
+        accum_re[blockIdx().x] = shmem[1 + 0 * blockDim().x]
+        accum_im[blockIdx().x] = shmem[1 + 1 * blockDim().x]
+    end
+
+    return nothing
+end
