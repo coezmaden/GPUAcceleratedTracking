@@ -31,6 +31,7 @@ const GNSSDICT = Dict(
 )
 
 include("algorithms.jl")
+include("reduction.jl")
 include("gen_signal.jl")
 include("benchmarks.jl")
 include("plots.jl")
