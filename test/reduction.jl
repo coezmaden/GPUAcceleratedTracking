@@ -351,7 +351,7 @@ end
     # end
 end
 
-# @testset "Complex Multi Reduction #4 per Harris" begin
+@testset "Complex Multi Reduction #4 per Harris" begin
     num_samples = 2500
     num_ants = 1
     num_correlators = 3
@@ -393,24 +393,24 @@ end
     )
     accum_true = ComplexF32[num_samples num_samples num_samples]
     @test Array(accum)[1, :, :,] ≈ accum_true
-    @benchmark CUDA.@sync begin
-        @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size reduce_cplx_multi_4(
-            $accum.re,
-            $accum.im,
-            $input.re,
-            $input.im,
-            $num_samples,
-            $NumAnts(num_ants),
-            $correlator_sample_shifts
-        )
-        @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size reduce_cplx_multi_4(
-            $accum.re,
-            $accum.im,
-            $accum.re,
-            $accum.im,
-            $blocks_per_grid,
-            $NumAnts(num_ants),
-            $correlator_sample_shifts
-        )
-    end
+    # @benchmark CUDA.@sync begin
+    #     @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size reduce_cplx_multi_4(
+    #         $accum.re,
+    #         $accum.im,
+    #         $input.re,
+    #         $input.im,
+    #         $num_samples,
+    #         $NumAnts(num_ants),
+    #         $correlator_sample_shifts
+    #     )
+    #     @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size reduce_cplx_multi_4(
+    #         $accum.re,
+    #         $accum.im,
+    #         $accum.re,
+    #         $accum.im,
+    #         $blocks_per_grid,
+    #         $NumAnts(num_ants),
+    #         $correlator_sample_shifts
+    #     )
+    # end
 end
