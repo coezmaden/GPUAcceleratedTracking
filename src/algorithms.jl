@@ -747,6 +747,48 @@ function downconvert_and_accumulate_strided_kernel!(
     return nothing
 end
 
+# Reduction per Harris #3
+function reduce_3(
+    accum,
+    input,
+    num_samples,
+)
+    # define needed incides
+    threads_per_block = blockDim().x
+    block_idx = blockIdx().x
+    thread_idx = threadIdx().x
+    sample_idx = (block_idx - 1) * threads_per_block + thread_idx
+
+    # allocate the shared memory for the partial sum
+    shmem = @cuDynamicSharedMem(Float32, threads_per_block)
+
+    # each thread loads one element from global to shared memory
+    if sample_idx <= num_samples
+        shmem[thread_idx] = input[sample_idx]
+    end
+
+    # wait until all finished
+    sync_threads() 
+
+    # do (partial) reduction in shared memory
+    s::UInt32 = threads_per_block ÷ 2
+    while s != 0 
+        sync_threads()
+        if thread_idx - 1 < s
+            shmem[thread_idx] += shmem[thread_idx + s]
+        end
+        
+        s ÷= 2
+    end
+
+    # first thread returns the result of reduction to global memory
+    if thread_idx == 1
+        accum[blockIdx().x] = shmem[1]
+    end
+
+    return nothing
+end
+
 # Complex reduction per Harris #3
 function reduce_cplx_3(
     accum_re,

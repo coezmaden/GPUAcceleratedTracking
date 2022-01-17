@@ -40,6 +40,7 @@ export
     run_track_benchmark,
     run_kernel_benchmark,
     plot_min_exec_time,
+    reduce_3,
     reduce_cplx_3,
     gen_code_replica_kernel!,
     gen_code_replica_strided_kernel!,
