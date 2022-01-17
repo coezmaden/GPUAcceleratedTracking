@@ -329,8 +329,8 @@ function reduce_cplx_multi_4(
     if tid == 1
         for antenna_idx = 1:NANT
             for corr_idx = 1:NCOR
-            accum_re[blockIdx().x, antenna_idx, corr_idx] = shmem[1 + 0 * blockDim().x, antenna_idx, corr_idx]
-            accum_im[blockIdx().x, antenna_idx, corr_idx] = shmem[1 + 1 * blockDim().x, antenna_idx, corr_idx]
+                accum_re[blockIdx().x, antenna_idx, corr_idx] = shmem[1 + 0 * blockDim().x, antenna_idx, corr_idx]
+                accum_im[blockIdx().x, antenna_idx, corr_idx] = shmem[1 + 1 * blockDim().x, antenna_idx, corr_idx]
             end
         end
     end
