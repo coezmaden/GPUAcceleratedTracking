@@ -238,4 +238,21 @@ end
     ϕ = ComplexF32.([1476.0f0; 2500.0f0; 1476.0f0])
     @test Array(accum)[:, :, 2] ≈ ones(ComplexF32, num_samples)
     @test ϕ_hat ≈ ϕ
+    # @benchmark CUDA.@sync @cuda threads=$threads blocks=$blocks $downconvert_and_accumulate_strided_kernel!(
+    #     $accum.re,
+    #     $accum.im,
+    #     $code_replica,
+    #     $carrier_replica.re,
+    #     $carrier_replica.im,
+    #     $downconverted_signal.re,
+    #     $downconverted_signal.im,
+    #     $signal.re,
+    #     $signal.im,
+    #     $carrier_frequency,
+    #     $sampling_frequency,
+    #     $carrier_phase,
+    #     $num_samples,
+    #     $NumAnts(num_ants),
+    #     $correlator_sample_shifts
+    # )
 end
