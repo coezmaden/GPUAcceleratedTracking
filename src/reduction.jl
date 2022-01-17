@@ -14,7 +14,7 @@ function reduce_3(
     shmem = @cuDynamicSharedMem(Float32, threads_per_block)
 
     # each thread loads one element from global to shared memory
-    if sample_idx <= num_samples
+    @inbounds if sample_idx <= num_samples
         shmem[thread_idx] = input[sample_idx]
     end
 
@@ -23,7 +23,7 @@ function reduce_3(
 
     # do (partial) reduction in shared memory
     s::UInt32 = threads_per_block ÷ 2
-    while s != 0 
+    @inbounds while s != 0 
         sync_threads()
         if thread_idx - 1 < s
             shmem[thread_idx] += shmem[thread_idx + s]
@@ -33,7 +33,7 @@ function reduce_3(
     end
 
     # first thread returns the result of reduction to global memory
-    if thread_idx == 1
+    @inbounds if thread_idx == 1
         accum[blockIdx().x] = shmem[1]
     end
 
@@ -60,7 +60,7 @@ function reduce_cplx_3(
     shmem = @cuDynamicSharedMem(Float32, (2 * threads_per_block))
 
     # each thread loads one element from global to shared memory
-    if sample_idx <= num_samples
+    @inbounds if sample_idx <= num_samples
         shmem[thread_idx + 0 * iq_offset] = input_re[sample_idx]
         shmem[thread_idx + 1 * iq_offset] = input_im[sample_idx]
     end
@@ -70,7 +70,7 @@ function reduce_cplx_3(
 
     # do (partial) reduction in shared memory
     s::UInt32 = threads_per_block ÷ 2
-    while s != 0 
+    @inbounds while s != 0 
         sync_threads()
         if thread_idx - 1 < s
             shmem[thread_idx + 0 * iq_offset] += shmem[thread_idx + 0 * iq_offset + s]
@@ -81,7 +81,7 @@ function reduce_cplx_3(
     end
 
     # first thread returns the result of reduction to global memory
-    if thread_idx == 1
+    @inbounds if thread_idx == 1
         accum_re[blockIdx().x] = shmem[1 + 0 * iq_offset]
         accum_im[blockIdx().x] = shmem[1 + 1 * iq_offset]
     end
@@ -111,7 +111,7 @@ function reduce_cplx_multi_3(
     shmem = @cuDynamicSharedMem(Float32, (2 * threads_per_block, NANT, NCOR))
 
     # each thread loads one element from global to shared memory
-    if sample_idx <= num_samples
+    @inbounds if sample_idx <= num_samples
         for antenna_idx = 1:NANT
             for corr_idx = 1:NCOR
                 shmem[thread_idx + 0 * iq_offset, antenna_idx, corr_idx] = input_re[sample_idx, antenna_idx, corr_idx]
@@ -125,7 +125,7 @@ function reduce_cplx_multi_3(
 
     # do (partial) reduction in shared memory
     s::UInt32 = threads_per_block ÷ 2
-    while s != 0 
+    @inbounds while s != 0 
         sync_threads()
         if thread_idx - 1 < s
             for antenna_idx = 1:NANT
@@ -140,7 +140,7 @@ function reduce_cplx_multi_3(
     end
 
     # first thread returns the result of reduction to global memory
-    if thread_idx == 1
+    @inbounds if thread_idx == 1
         for antenna_idx = 1:NANT
             for corr_idx = 1:NCOR
                 accum_re[blockIdx().x, antenna_idx, corr_idx] = shmem[1 + 0 * iq_offset, antenna_idx, corr_idx]
@@ -173,7 +173,7 @@ function reduce_4(
     # each thread loads one element from global to shared memory
     # AND
     # does the first level of reduction
-    if i <= length(input)
+    @inbounds if i <= length(input)
         mysum = input[i]
         if i + blockDim().x <= length(input)
             mysum += input[i + blockDim().x]
@@ -187,7 +187,7 @@ function reduce_4(
 
     # do (partial) reduction in shared memory
     s::UInt32 = blockDim().x ÷ 2
-    while s != 0 
+    @inbounds while s != 0 
         sync_threads()
         if tid - 1 < s
             shmem[tid] += shmem[tid + s]
@@ -197,7 +197,7 @@ function reduce_4(
     end
 
     # first thread returns the result of reduction to global memory
-    if tid == 1
+    @inbounds if tid == 1
         accum[blockIdx().x] = shmem[1]
     end
 
@@ -229,7 +229,7 @@ function reduce_cplx_4(
     # each thread loads one element from global to shared memory
     # AND
     # does the first level of reduction
-    if i <= length(input_re)
+    @inbounds if i <= length(input_re)
         shmem[tid + 0 * blockDim().x] = input_re[i]
         shmem[tid + 1 * blockDim().x] = input_im[i]
         
@@ -244,7 +244,7 @@ function reduce_cplx_4(
 
     # do (partial) reduction in shared memory
     s::UInt32 = blockDim().x ÷ 2
-    while s != 0 
+    @inbounds while s != 0 
         sync_threads()
         if tid - 1 < s
             shmem[tid + 0 * blockDim().x] += shmem[tid + s + 0 * blockDim().x]
@@ -255,7 +255,7 @@ function reduce_cplx_4(
     end
 
     # first thread returns the result of reduction to global memory
-    if tid == 1
+    @inbounds if tid == 1
         accum_re[blockIdx().x] = shmem[1 + 0 * blockDim().x]
         accum_im[blockIdx().x] = shmem[1 + 1 * blockDim().x]
     end
@@ -282,7 +282,7 @@ function reduce_cplx_multi_4(
     # allocate the shared memory for the partial sum
     shmem = @cuDynamicSharedMem(Float32, (2 * blockDim().x, NANT, NCOR))
     # wipe values
-    for antenna_idx = 1:NANT
+    @inbounds for antenna_idx = 1:NANT
         for corr_idx = 1:NCOR
             shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] = 0.0f0
             shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] = 0.0f0
@@ -292,7 +292,7 @@ function reduce_cplx_multi_4(
     # each thread loads one element from global to shared memory
     # AND
     # does the first level of reduction
-    if i <= num_samples
+    @inbounds if i <= num_samples
         for antenna_idx = 1:NANT
             for corr_idx = 1:NCOR
                 shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] = input_re[i, antenna_idx, corr_idx]
@@ -311,7 +311,7 @@ function reduce_cplx_multi_4(
 
     # do (partial) reduction in shared memory
     s::UInt32 = blockDim().x ÷ 2
-    while s != 0 
+    @inbounds while s != 0 
         sync_threads()
         if tid - 1 < s
             for antenna_idx = 1:NANT
@@ -326,7 +326,7 @@ function reduce_cplx_multi_4(
     end
 
     # first thread returns the result of reduction to global memory
-    if tid == 1
+    @inbounds if tid == 1
         for antenna_idx = 1:NANT
             for corr_idx = 1:NCOR
                 accum_re[blockIdx().x, antenna_idx, corr_idx] = shmem[1 + 0 * blockDim().x, antenna_idx, corr_idx]
