@@ -49,6 +49,36 @@
     end
     accum_true = ComplexF32[num_samples num_samples num_samples]
     @test Array(accum)[1, :, :,] ≈ accum_true
+    # @benchmark CUDA.@sync begin
+    #     for corr_idx = 1:$num_correlators
+    #         # re samples
+    #         @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_3(
+    #             $view(accum.re, :, :, corr_idx),
+    #             $view(input.re, :, :, corr_idx),
+    #             $num_samples
+    #         )
+    #         # im samples
+    #         @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_3(
+    #             $view(accum.im, :, :, corr_idx),
+    #             $view(input.im, :, :, corr_idx),
+    #             $num_samples
+    #         )
+    #     end
+    #     for corr_idx = 1:$num_correlators
+    #         # re samples
+    #         @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size $reduce_3(
+    #             $view(accum.re, :, :, corr_idx),
+    #             $view(accum.re, :, :, corr_idx),
+    #             $size(accum, 1)
+    #         )
+    #         # im samples
+    #         @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size $reduce_3(
+    #             $view(accum.im, :, :, corr_idx),
+    #             $view(accum.im, :, :, corr_idx),
+    #             $size(accum, 1)
+    #         )
+    #     end
+    # end
 end
 
 @testset "Complex Reduction #3 per Harris" begin
@@ -92,6 +122,26 @@ end
     end
     accum_true = ComplexF32[num_samples num_samples num_samples]
     @test Array(accum)[1, :, :,] ≈ accum_true
+    # @benchmark CUDA.@sync begin
+    #     for corr_idx = 1:$num_correlators
+    #         @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_cplx_3(
+    #             $view(accum.re, :, :, corr_idx),
+    #             $view(accum.im, :, :, corr_idx),
+    #             $view(input.re, :, :, corr_idx),
+    #             $view(input.im, :, :, corr_idx),
+    #             $num_samples
+    #         )
+    #     end
+    #     for corr_idx = 1:$num_correlators
+    #         @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size $reduce_cplx_3(
+    #             $view(accum.re, :, :, corr_idx),
+    #             $view(accum.im, :, :, corr_idx),
+    #             $view(accum.re, :, :, corr_idx),
+    #             $view(accum.im, :, :, corr_idx),
+    #             $size(accum, 1)
+    #         )
+    #     end
+    # end
 end
 
 @testset "Complex Multi Reduction #3 per Harris" begin
@@ -135,6 +185,26 @@ end
     )
     accum_true = ComplexF32[num_samples num_samples num_samples]
     @test Array(accum)[1, :, :,] ≈ accum_true
+    # @benchmark CUDA.@sync begin
+    #     @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_cplx_multi_3(
+    #         $accum.re,
+    #         $accum.im,
+    #         $input.re,
+    #         $input.im,
+    #         $num_samples,
+    #         $NumAnts(num_ants),
+    #         $correlator_sample_shifts
+    #     )
+    #     @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size $reduce_cplx_multi_3(
+    #         $accum.re,
+    #         $accum.im,
+    #         $accum.re,
+    #         $accum.im,
+    #         $size(accum, 1),
+    #         $NumAnts(num_ants),
+    #         $correlator_sample_shifts
+    #     )
+    # end
 end
 
 @testset "Reduction #4 per Harris" begin
@@ -189,6 +259,36 @@ end
     end
     accum_true = ComplexF32[num_samples num_samples num_samples]
     @test Array(accum)[1, :, :,] ≈ accum_true
+    # @benchmark CUDA.@sync begin
+    #     for corr_idx = 1:$num_correlators
+    #         # re samples
+    #         @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_4(
+    #             $view(accum.re, :, :, corr_idx),
+    #             $view(input.re, :, :, corr_idx),
+    #             $num_samples
+    #         )
+    #         # im samples
+    #         @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_4(
+    #             $view(accum.im, :, :, corr_idx),
+    #             $view(input.im, :, :, corr_idx),
+    #             $num_samples
+    #         )
+    #     end
+    #     for corr_idx = 1:$num_correlators
+    #         # re samples
+    #         @cuda threads=$threads_per_block÷2 blocks=1 shmem=$shmem_size $reduce_4(
+    #             $view(accum.re, :, :, corr_idx),
+    #             $view(accum.re, :, :, corr_idx),
+    #             $size(accum, 1)
+    #         )
+    #         # im samples
+    #         @cuda threads=$threads_per_block÷2 blocks=1 shmem=$shmem_size $reduce_4(
+    #             $view(accum.im, :, :, corr_idx),
+    #             $view(accum.im, :, :, corr_idx),
+    #             $size(accum, 1)
+    #         )
+    #     end
+    # end
 end
 
 @testset "Complex Reduction #4 per Harris" begin
