@@ -30,6 +30,21 @@ const GNSSDICT = Dict(
     "GalileoE1B" => GalileoE1B
 )
 
+const ALGODICT = Dict(
+    # "1_3_pure"                  => 1300,
+    # "1_3_pure_textmem"          => 1301,
+    # "1_3_cplx"                  => 1320,
+    # "1_3_cplx_textmem"          => 1321,
+    "1_3_cplx_multi"            => 1320,
+    # "1_3_cplx_multi_textmem"    => 1321,
+    "1_4_cplx_multi"            => 1420,
+    "1_4_cplx_multi_textmem"    => 1421,
+    "2_3_cplx_multi"            => 2330,
+    "2_3_cplx_multi_textmem"    => 2331,
+    "2_4_cplx_multi"            => 2430,
+    "2_4_cplx_multi_textmem"    => 2431
+)
+
 include("algorithms.jl")
 include("reduction.jl")
 include("gen_signal.jl")
