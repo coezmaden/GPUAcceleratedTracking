@@ -41,3 +41,65 @@ function plot_min_exec_time_gpu(df::DataFrame; num_ants = 1, num_correlators = 3
         xaxis = ("Number of Samples", :plain)
     )
 end
+
+# function plot_pgf_kernel_comparison(
+#     df::DataFrame;
+#     num_ants = 1,
+#     num_correlators = 3;
+# )
+#     gpudf = df |> @filter(_.processor=="GPU") |> @filter(_.num_ants==num_ants) |> @filter(_.num_correlators==num_correlators) |> @map({_.num_samples, _.Minimum}) |> DataFrame
+#     cpudf = df |> @filter(_.processor=="CPU") |> @filter(_.num_ants==num_ants) |> @filter(_.num_correlators==num_correlators) |> @map({_.num_samples, _.Minimum}) |> DataFrame
+
+#     num_samples = unique(Vector{Int64}(gpudf[!, :num_samples]))
+
+#     gputimes = Vector{Float64}(gpudf[!, :Minimum])
+#     cputimes = Vector{Float64}(cpudf[!, :Minimum])
+
+#     pgfplot = @pgf TikzPicture(
+#         Axis(
+#             {
+#                 xlabel = "Samples",
+#                 ylabel = "Time [μs]",
+#                 ymode = "log",
+#                 title = "Execution Time",
+#                 xmajorgrids,
+#                 ymajorgrids,
+#                 scaled_ticks = "false"
+#             },
+#             PlotInc(
+#                 {
+#                     gputimes
+#                 }
+#             )
+#         )
+#     )
+# end
+
+# function plot_kernel_comparison(df::DataFrame; num_ants = 1, num_correlators = 3)
+#     # Filter out CPU and GPU data
+#     gpudf = df |> @filter(_.processor=="GPU") |> @filter(_.num_ants==num_ants) |> @filter(_.num_correlators==num_correlators) |> @map({_.num_samples, _.algorithm, _.Minimum}) |> @orderby(({_.num_samples})) |> DataFrame
+#     cpudf = df |> @filter(_.processor=="CPU") |> @filter(_.num_ants==num_ants) |> @filter(_.num_correlators==num_correlators) |> @map({_.num_samples, _.Minimum}) |> DataFrame
+
+#     algorithms = unique(Vector{Int64}(gpudf[!, :algorithm]))
+#     samples = unique(Vector{Int64}(gpudf[!, :num_samples]))
+
+#     gputimes = zeros(Float64, (length(algorithms), length(samples)))
+#     for i = 1:length(algorithms)
+#         gpualgodf = gpudf |> @filter(_.algorithm==i) |> DataFrame
+#         gputimes[i, :] = gpualgodf[!, :Minimum]
+#     end
+#     cputimes = Vector{Float64}(cpudf[!, :Minimum])
+
+#     data = [transpose(cputimes); gputimes]
+#     labels = ["CPU" "GPU #1" "GPU #2" "GPU #3" "GPU #4" "GPU #5" "GPU #6" "GPU #7"]
+#     markershapes = [:circle :diamond :octagon :heptagon :pentagon :rect :utriangle]
+
+#     plot(
+#        samples,
+#        transpose(data),
+#        label = labels
+#        #shape = markershapes,
+#     )
+#     xaxis!("Number of Samples")
+#     yaxis!("Execution Time [ns]", :log10)
+# end

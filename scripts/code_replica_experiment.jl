@@ -18,7 +18,7 @@ enable_gpu = Val(true)
 num_samples = 50000
 num_ants = 1
 num_correlators = 3
-algorithm = KernelAlgorithm(5)
+# algorithm = KernelAlgorithm(5)
 
 system = GPSL1(use_gpu = enable_gpu)
 codes = system.codes
@@ -54,7 +54,7 @@ carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUD
 downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
 
 # Generate CUDA kernel tuning parameters;
-threads_per_block = [1024, 512÷2]
+threads_per_block = [768, 512÷2]
 blocks_per_grid = cld.(num_samples, threads_per_block)
 partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts)))))
 shmem_size = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
@@ -88,7 +88,7 @@ code_replica_strided = CUDA.zeros(Float32, num_samples + num_of_shifts)
 code_replica_strided
 @test Array(code_replica_strided) == Array(code_replica) 
 
-@btime CUDA.@sync @cuda threads=$threads_per_block[1] blocks=$blocks_per_grid[1] gen_code_replica_kernel!(
+@btime CUDA.@sync @cuda threads=768 blocks=$blocks_per_grid[1] gen_code_replica_kernel!(
     $code_replica,
     $codes, # texture memory codes
     $code_frequency,
@@ -99,7 +99,7 @@ code_replica_strided
     $num_of_shifts,
     $code_length
 )
-@btime CUDA.@sync @cuda threads=$threads_per_block[1] blocks=num_of_multiprocessors*1 gen_code_replica_strided_kernel!(
+@btime CUDA.@sync @cuda threads=768 blocks=num_of_multiprocessors*1 gen_code_replica_strided_kernel!(
     $code_replica_strided,
     $codes, # texture memory codes
     $code_frequency,

@@ -76,3 +76,28 @@ CUDA.@profile kernel_algorithm(
     nothing,
     algorithm
 )
+
+
+kernel = @cuda launch=false gen_code_replica_strided_kernel!(
+    code_replica,
+    codes,
+    code_frequency,
+    sampling_frequency,
+    start_code_phase,
+    prn,
+    num_samples,
+    num_of_shifts,
+    code_length
+)
+blocks, threads = launch_configuration(kernel.fun)
+CUDA.@profile @cuda threads=threads_per_block[1] blocks=1 gen_code_replica_strided_kernel!(
+    code_replica,
+    codes,
+    code_frequency,
+    sampling_frequency,
+    start_code_phase,
+    prn,
+    num_samples,
+    num_of_shifts,
+    code_length
+)

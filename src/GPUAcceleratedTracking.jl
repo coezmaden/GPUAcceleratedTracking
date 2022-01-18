@@ -41,6 +41,7 @@ export
     gen_signal, 
     run_track_benchmark,
     run_kernel_benchmark,
+    eval_results,
     plot_min_exec_time,
     reduce_3,
     reduce_4,
