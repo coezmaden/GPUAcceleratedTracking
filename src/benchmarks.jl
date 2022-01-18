@@ -110,7 +110,7 @@ function _run_kernel_benchmark(
     blocks_per_grid = cld(num_samples, block_dim_x)
     partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z), CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z)))
     shmem_size = [sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
-                sizeof(ComplexF32) * 512 * num_ants * num_correlators]
+                sizeof(ComplexF32) * 1024 * num_ants * num_correlators]
     Num_Ants = NumAnts(num_ants)
     @benchmark CUDA.@sync $kernel_algorithm(
         $threads_per_block,
@@ -214,85 +214,24 @@ function _run_kernel_benchmark(
     )
 end
 
-# GPU Kernel Benchmark for KernelAlgorithm 2
+# GPU Kernel Benchmark for KernelAlgorithm 1_4_cplx_multi_texmem
 function _run_kernel_benchmark(
     gnss,
     enable_gpu::Val{true},
     num_samples,
     num_ants,
     num_correlators,
-    algorithm::KernelAlgorithm{2}
+    algorithm::KernelAlgorithm{1431}
 )   
     # Generate GNSS object and signal information
     system = gnss(use_gpu = enable_gpu)
     codes = system.codes
-    code_frequency = get_code_frequency(system)
-    code_length = get_code_length(system)
-    start_code_phase = 0.0f0
-    carrier_phase = 0.0f0
-    carrier_frequency = 1500Hz
-    prn = 1
-
-    # Generate the signal
-    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants = NumAnts(num_ants), start_code_phase = start_code_phase, start_carrier_phase = carrier_phase)
-    
-    # Generate correlator
-    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
-    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
-    num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
-
-    # Generate blank code and carrier replica, and downconverted signal
-    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
-    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
-    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
-
-    # Generate CUDA kernel tuning parameters
-    threads_per_block = [1024, 512]
-    blocks_per_grid = cld.(num_samples, threads_per_block)
-    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts)))))
-    shmem_size = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
-
-    @benchmark CUDA.@sync kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $partial_sum,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $num_ants,
-        nothing,
-        $algorithm
+    codes = CuTexture(
+        CuTextureArray(codes),
+        address_mode = CUDA.ADDRESS_MODE_WRAP,
+        interpolation = CUDA.NearestNeighbour(),
+        normalized_coordinates = true
     )
-end
-
-# GPU Kernel Benchmark for KernelAlgorithm 3
-function _run_kernel_benchmark(
-    gnss,
-    enable_gpu::Val{true},
-    num_samples,
-    num_ants,
-    num_correlators,
-    algorithm::KernelAlgorithm{3}
-)   
-    # Generate GNSS object and signal information
-    system = gnss(use_gpu = enable_gpu)
-    codes = CuTexture(CuTextureArray(system.codes))
     code_frequency = get_code_frequency(system)
     code_length = get_code_length(system)
     start_code_phase = 0.0f0
@@ -308,89 +247,22 @@ function _run_kernel_benchmark(
     correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
     num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
 
-    # Generate blank code and carrier replica, and downconverted signal
-    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
-    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
-    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
-
     # Generate CUDA kernel tuning parameters
-    threads_per_block = [1024, 512]
-    blocks_per_grid = cld.(num_samples, threads_per_block)
-    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts)))))
-    shmem_size = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
-
-    @benchmark CUDA.@sync kernel_algorithm(
+    block_dim_z = num_correlators
+    block_dim_y = num_ants
+    # keep num_corrs and num_ants in seperate dimensions, truncate num_samples accordingly to fit
+    block_dim_x = prevpow(2, 512 ÷ block_dim_y ÷ block_dim_z)
+    threads_per_block = [(block_dim_x, block_dim_y, block_dim_z), 1024]
+    blocks_per_grid = cld(num_samples, block_dim_x)
+    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z), CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z)))
+    shmem_size = [sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
+                sizeof(ComplexF32) * threads_per_block[2] * num_ants * num_correlators]
+    Num_Ants = NumAnts(num_ants)
+    @benchmark CUDA.@sync $kernel_algorithm(
         $threads_per_block,
         $blocks_per_grid,
         $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $partial_sum,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $num_ants,
         nothing,
-        $KernelAlgorithm(2)
-    )
-end
-
-# GPU Kernel Benchmark for KernelAlgorithm 4
-function _run_kernel_benchmark(
-    gnss,
-    enable_gpu::Val{true},
-    num_samples,
-    num_ants,
-    num_correlators,
-    algorithm::KernelAlgorithm{4}
-)   
-    # Generate GNSS object and signal information
-    system = gnss(use_gpu = enable_gpu)
-    codes = CuTexture(CuTextureArray(system.codes))
-    code_frequency = get_code_frequency(system)
-    code_length = get_code_length(system)
-    start_code_phase = 0.0f0
-    carrier_phase = 0.0f0
-    carrier_frequency = 1500Hz
-    prn = 1
-
-    # Generate the signal
-    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants = NumAnts(num_ants), start_code_phase = start_code_phase, start_carrier_phase = carrier_phase)
-    
-    # Generate correlator
-    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
-    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
-    num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
-
-    # Generate blank code and carrier replica, and downconverted signal
-    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
-    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
-    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
-
-    # Generate CUDA kernel tuning parameters
-    threads_per_block = 512
-    blocks_per_grid = cld(num_samples, threads_per_block)
-    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid, num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid, num_ants, length(correlator_sample_shifts)))))
-    shmem_size = sizeof(ComplexF32) * threads_per_block * num_correlators * num_ants
-
-    @benchmark CUDA.@sync kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
         $codes,
         $code_frequency,
         $sampling_frequency,
@@ -400,217 +272,16 @@ function _run_kernel_benchmark(
         $num_of_shifts,
         $code_length,
         $partial_sum,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $num_ants,
         nothing,
-        $algorithm
-    )
-end
-
-# GPU Kernel Benchmark for KernelAlgorithm 5
-function _run_kernel_benchmark(
-    gnss,
-    enable_gpu::Val{true},
-    num_samples,
-    num_ants,
-    num_correlators,
-    algorithm::KernelAlgorithm{5}
-)   
-    # Generate GNSS object and signal information
-    system = gnss(use_gpu = enable_gpu)
-    codes = CuTexture(CuTextureArray(system.codes))
-    code_frequency = get_code_frequency(system)
-    code_length = get_code_length(system)
-    start_code_phase = 0.0f0
-    carrier_phase = 0.0f0
-    carrier_frequency = 1500Hz
-    prn = 1
-
-    # Generate the signal
-    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants = NumAnts(num_ants), start_code_phase = start_code_phase, start_carrier_phase = carrier_phase)
-    
-    # Generate correlator
-    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
-    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
-    num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
-
-    # Generate blank code and carrier replica, and downconverted signal
-    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
-    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
-    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
-
-    # Generate CUDA kernel tuning parameters
-    threads_per_block = [1024, 512÷2] # launch reduction with half the threads
-    blocks_per_grid = cld.(num_samples, threads_per_block)
-    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts)))))
-    shmem_size = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
-
-    @benchmark CUDA.@sync kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $partial_sum,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $num_ants,
         nothing,
-        $algorithm
-    )
-end
-
-# GPU Kernel Benchmark for KernelAlgorithm 6
-function _run_kernel_benchmark(
-    gnss,
-    enable_gpu::Val{true},
-    num_samples,
-    num_ants,
-    num_correlators,
-    algorithm::KernelAlgorithm{6}
-)   
-    # Generate GNSS object and signal information
-    system = gnss(use_gpu = enable_gpu)
-    codes = CuTexture(CuTextureArray(system.codes))
-    code_frequency = get_code_frequency(system)
-    code_length = get_code_length(system)
-    start_code_phase = 0.0f0
-    carrier_phase = 0.0f0
-    carrier_frequency = 1500Hz
-    prn = 1
-
-    # Generate the signal
-    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants = NumAnts(num_ants), start_code_phase = start_code_phase, start_carrier_phase = carrier_phase)
-    
-    # Generate correlator
-    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
-    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
-    num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
-
-    # Generate blank code and carrier replica, and downconverted signal
-    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
-    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
-    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
-
-    # Generate CUDA kernel tuning parameters
-    threads_per_block = [1024, 512÷2] # launch reduction with half the threads
-    blocks_per_grid = cld.(num_samples, threads_per_block)
-    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts)))))
-    shmem_size = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
-
-    @benchmark CUDA.@sync kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $partial_sum,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $num_ants,
         nothing,
-        $algorithm
-    )
-end
-
-# GPU Kernel Benchmark for KernelAlgorithm 5
-function _run_kernel_benchmark(
-    gnss,
-    enable_gpu::Val{true},
-    num_samples,
-    num_ants,
-    num_correlators,
-    algorithm::KernelAlgorithm{7}
-)   
-    # Generate GNSS object and signal information
-    system = gnss(use_gpu = enable_gpu)
-    codes = CuTexture(CuTextureArray(system.codes))
-    code_frequency = get_code_frequency(system)
-    code_length = get_code_length(system)
-    start_code_phase = 0.0f0
-    carrier_phase = 0.0f0
-    carrier_frequency = 1500Hz
-    prn = 1
-
-    # Generate the signal
-    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants = NumAnts(num_ants), start_code_phase = start_code_phase, start_carrier_phase = carrier_phase)
-    
-    # Generate correlator
-    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
-    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
-    num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
-
-    # Generate blank code and carrier replica, and downconverted signal
-    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
-    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
-    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
-
-    # Generate CUDA kernel tuning parameters
-    threads_per_block = [1024, 512÷2] # launch reduction with half the threads
-    blocks_per_grid = cld.(num_samples, threads_per_block)
-    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts))),CUDA.zeros(Float32, (blocks_per_grid[2], num_ants, length(correlator_sample_shifts)))))
-    shmem_size = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
-
-    @benchmark CUDA.@sync kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $partial_sum,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
+        nothing,
         $signal.re,
         $signal.im,
         $correlator_sample_shifts,
         $carrier_frequency,
         $carrier_phase,
-        $num_ants,
+        $Num_Ants,
         nothing,
         $algorithm
     )
