@@ -109,7 +109,13 @@ function reduce_cplx_multi_3(
     # double the memory for complex values, accessed via
     # iq_offset
     shmem = @cuDynamicSharedMem(Float32, (2 * threads_per_block, NANT, NCOR))
-
+    for antenna_idx = 1:NANT
+        for corr_idx = 1:NCOR
+            shmem[thread_idx + 0 * iq_offset, antenna_idx, corr_idx]
+            shmem[thread_idx + 1 * iq_offset, antenna_idx, corr_idx]
+        end
+    end
+    
     # each thread loads one element from global to shared memory
     @inbounds if sample_idx <= num_samples
         for antenna_idx = 1:NANT

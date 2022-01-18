@@ -320,206 +320,72 @@ function downconvert_and_correlate_kernel_1431!(
     return nothing
 end
 
-function downconvert_and_correlate_kernel_2!(
-    partial_sum_re,
-    partial_sum_im,
-    carrier_replica_re,
-    carrier_replica_im,
-    downconverted_signal_re,
-    downconverted_signal_im,
-    signal_re,
-    signal_im,
-    code_replica,
-    correlator_sample_shifts::SVector{NCOR, Int64},
-    carrier_frequency,
-    sampling_frequency,
-    carrier_phase,
-    num_samples::Int,
-    num_ants::NumAnts{NANT}
-)  where {NCOR, NANT}
-    cache = @cuDynamicSharedMem(Float32, (2 * blockDim().x, NANT, NCOR))
-    sample_idx   = 1 + ((blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1))
-    iq_offset = blockDim().x # indexing offset for complex values I/Q samples 
-    cache_index = threadIdx().x - 1
+# function downconvert_and_correlate_kernel_2____!(
+#     partial_sum_re,
+#     partial_sum_im,
+#     carrier_replica_re,
+#     carrier_replica_im,
+#     downconverted_signal_re,
+#     downconverted_signal_im,
+#     signal_re,
+#     signal_im,
+#     code_replica,
+#     correlator_sample_shifts::SVector{NCOR, Int64},
+#     carrier_frequency,
+#     sampling_frequency,
+#     carrier_phase,
+#     num_samples::Int,
+#     num_ants::NumAnts{NANT}
+# )  where {NCOR, NANT}
+#     cache = @cuDynamicSharedMem(Float32, (2 * blockDim().x, NANT, NCOR))
+#     sample_idx   = 1 + ((blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1))
+#     iq_offset = blockDim().x # indexing offset for complex values I/Q samples 
+#     cache_index = threadIdx().x - 1
 
-    @inbounds if sample_idx <= num_samples
-        # carrier replica generation, sin->im , cos->re
-        carrier_replica_im[sample_idx], carrier_replica_re[sample_idx] = CUDA.sincos(2π * ((sample_idx - 1) * carrier_frequency / sampling_frequency + carrier_phase))
+#     @inbounds if sample_idx <= num_samples
+#         # carrier replica generation, sin->im , cos->re
+#         carrier_replica_im[sample_idx], carrier_replica_re[sample_idx] = CUDA.sincos(2π * ((sample_idx - 1) * carrier_frequency / sampling_frequency + carrier_phase))
 
-        # downconversion / carrier wipe off
-        for antenna_idx = 1:NANT
-            downconverted_signal_re[sample_idx, antenna_idx] = signal_re[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] + signal_im[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
-            downconverted_signal_im[sample_idx, antenna_idx] = signal_im[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] - signal_re[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
-            for corr_idx = 1:NCOR
-                sample_shift = correlator_sample_shifts[corr_idx] - correlator_sample_shifts[1]
-                # write to shared memory cache
-                cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] = code_replica[sample_idx + sample_shift] * downconverted_signal_re[sample_idx, antenna_idx]
-                cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] = code_replica[sample_idx + sample_shift] * downconverted_signal_im[sample_idx, antenna_idx]
-            end
-        end
-    end
-    ## Partial Reduction
-    # wait until all the accumulators have done writing the results to the cache
-    sync_threads()
+#         # downconversion / carrier wipe off
+#         for antenna_idx = 1:NANT
+#             downconverted_signal_re[sample_idx, antenna_idx] = signal_re[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] + signal_im[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
+#             downconverted_signal_im[sample_idx, antenna_idx] = signal_im[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] - signal_re[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
+#             for corr_idx = 1:NCOR
+#                 sample_shift = correlator_sample_shifts[corr_idx] - correlator_sample_shifts[1]
+#                 # write to shared memory cache
+#                 cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] = code_replica[sample_idx + sample_shift] * downconverted_signal_re[sample_idx, antenna_idx]
+#                 cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] = code_replica[sample_idx + sample_shift] * downconverted_signal_im[sample_idx, antenna_idx]
+#             end
+#         end
+#     end
+#     ## Partial Reduction
+#     # wait until all the accumulators have done writing the results to the cache
+#     sync_threads()
 
-    i::Int = blockDim().x ÷ 2
-    @inbounds while i != 0
-        if cache_index < i
-            for antenna_idx = 1:NANT
-                for corr_idx = 1:NCOR
-                    cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] += cache[1 + cache_index + 0 * iq_offset + i, antenna_idx, corr_idx]
-                    cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] += cache[1 + cache_index + 1 * iq_offset + i, antenna_idx, corr_idx]
-                end
-            end
-        end
-        sync_threads()
-        i ÷= 2
-    end
+#     i::Int = blockDim().x ÷ 2
+#     @inbounds while i != 0
+#         if cache_index < i
+#             for antenna_idx = 1:NANT
+#                 for corr_idx = 1:NCOR
+#                     cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] += cache[1 + cache_index + 0 * iq_offset + i, antenna_idx, corr_idx]
+#                     cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] += cache[1 + cache_index + 1 * iq_offset + i, antenna_idx, corr_idx]
+#                 end
+#             end
+#         end
+#         sync_threads()
+#         i ÷= 2
+#     end
     
-    @inbounds if (threadIdx().x - 1) == 0
-         for antenna_idx = 1:NANT
-            for corr_idx = 1:NCOR
-                partial_sum_re[blockIdx().x, antenna_idx, corr_idx] += cache[1 + 0 * iq_offset, antenna_idx, corr_idx]
-                partial_sum_im[blockIdx().x, antenna_idx, corr_idx] += cache[1 + 1 * iq_offset, antenna_idx, corr_idx]
-            end
-        end
-    end
-    return nothing
-end
-
-function downconvert_and_correlate_kernel_2!(
-    partial_sum_re,
-    partial_sum_im,
-    carrier_replica_re,
-    carrier_replica_im,
-    downconverted_signal_re,
-    downconverted_signal_im,
-    signal_re,
-    signal_im,
-    code_replica,
-    correlator_sample_shifts::SVector{NCOR, Int64},
-    carrier_frequency,
-    sampling_frequency,
-    carrier_phase,
-    num_samples::Int,
-    num_ants::NumAnts{NANT}
-)  where {NCOR, NANT}
-    cache = @cuDynamicSharedMem(Float32, (2 * blockDim().x, NANT, NCOR))
-    sample_idx   = 1 + ((blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1))
-    iq_offset = blockDim().x # indexing offset for complex values I/Q samples 
-    cache_index = threadIdx().x - 1
-
-    @inbounds if sample_idx <= num_samples
-        # carrier replica generation, sin->im , cos->re
-        carrier_replica_im[sample_idx], carrier_replica_re[sample_idx] = CUDA.sincos(2π * ((sample_idx - 1) * carrier_frequency / sampling_frequency + carrier_phase))
-
-        # downconversion / carrier wipe off
-        for antenna_idx = 1:NANT
-            downconverted_signal_re[sample_idx, antenna_idx] = signal_re[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] + signal_im[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
-            downconverted_signal_im[sample_idx, antenna_idx] = signal_im[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] - signal_re[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
-            for corr_idx = 1:NCOR
-                sample_shift = correlator_sample_shifts[corr_idx] - correlator_sample_shifts[1]
-                # write to shared memory cache
-                cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] = code_replica[sample_idx + sample_shift] * downconverted_signal_re[sample_idx, antenna_idx]
-                cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] = code_replica[sample_idx + sample_shift] * downconverted_signal_im[sample_idx, antenna_idx]
-            end
-        end
-    end
-    ## Partial Reduction
-    # wait until all the accumulators have done writing the results to the cache
-    sync_threads()
-
-    i::Int = blockDim().x ÷ 2
-    @inbounds while i != 0
-        if cache_index < i
-            for antenna_idx = 1:NANT
-                for corr_idx = 1:NCOR
-                    cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] += cache[1 + cache_index + 0 * iq_offset + i, antenna_idx, corr_idx]
-                    cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] += cache[1 + cache_index + 1 * iq_offset + i, antenna_idx, corr_idx]
-                end
-            end
-        end
-        sync_threads()
-        i ÷= 2
-    end
-    
-    @inbounds if (threadIdx().x - 1) == 0
-         for antenna_idx = 1:NANT
-            for corr_idx = 1:NCOR
-                partial_sum_re[blockIdx().x, antenna_idx, corr_idx] += cache[1 + 0 * iq_offset, antenna_idx, corr_idx]
-                partial_sum_im[blockIdx().x, antenna_idx, corr_idx] += cache[1 + 1 * iq_offset, antenna_idx, corr_idx]
-            end
-        end
-    end
-    return nothing
-end
-
-function downconvert_and_correlate_strided_kernel_2!(
-    partial_sum_re,
-    partial_sum_im,
-    carrier_replica_re,
-    carrier_replica_im,
-    downconverted_signal_re,
-    downconverted_signal_im,
-    signal_re,
-    signal_im,
-    code_replica,
-    correlator_sample_shifts::SVector{NCOR, Int64},
-    carrier_frequency,
-    sampling_frequency,
-    carrier_phase,
-    num_samples::Int,
-    num_ants::NumAnts{NANT}
-)  where {NCOR, NANT}
-    cache = @cuDynamicSharedMem(Float32, (2 * blockDim().x, NANT, NCOR))
-    sample_idx   = 1 + ((blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1))
-    iq_offset = blockDim().x # indexing offset for complex values I/Q samples 
-    cache_index = threadIdx().x - 1
-
-    @inbounds if sample_idx <= num_samples
-        # carrier replica generation, sin->im , cos->re
-        carrier_replica_im[sample_idx], carrier_replica_re[sample_idx] = CUDA.sincos(2π * ((sample_idx - 1) * carrier_frequency / sampling_frequency + carrier_phase))
-
-        # downconversion / carrier wipe off
-        for antenna_idx = 1:NANT
-            downconverted_signal_re[sample_idx, antenna_idx] = signal_re[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] + signal_im[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
-            downconverted_signal_im[sample_idx, antenna_idx] = signal_im[sample_idx, antenna_idx] * carrier_replica_re[sample_idx] - signal_re[sample_idx, antenna_idx] * carrier_replica_im[sample_idx]
-            for corr_idx = 1:NCOR
-                sample_shift = correlator_sample_shifts[corr_idx] - correlator_sample_shifts[1]
-                # write to shared memory cache
-                cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] = code_replica[sample_idx + sample_shift] * downconverted_signal_re[sample_idx, antenna_idx]
-                cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] = code_replica[sample_idx + sample_shift] * downconverted_signal_im[sample_idx, antenna_idx]
-            end
-        end
-    end
-    ## Partial Reduction
-    # wait until all the accumulators have done writing the results to the cache
-    sync_threads()
-
-    i::Int = blockDim().x ÷ 2
-    @inbounds while i != 0
-        if cache_index < i
-            for antenna_idx = 1:NANT
-                for corr_idx = 1:NCOR
-                    cache[1 + cache_index + 0 * iq_offset, antenna_idx, corr_idx] += cache[1 + cache_index + 0 * iq_offset + i, antenna_idx, corr_idx]
-                    cache[1 + cache_index + 1 * iq_offset, antenna_idx, corr_idx] += cache[1 + cache_index + 1 * iq_offset + i, antenna_idx, corr_idx]
-                end
-            end
-        end
-        sync_threads()
-        i ÷= 2
-    end
-    
-    @inbounds if (threadIdx().x - 1) == 0
-         for antenna_idx = 1:NANT
-            for corr_idx = 1:NCOR
-                partial_sum_re[blockIdx().x, antenna_idx, corr_idx] += cache[1 + 0 * iq_offset, antenna_idx, corr_idx]
-                partial_sum_im[blockIdx().x, antenna_idx, corr_idx] += cache[1 + 1 * iq_offset, antenna_idx, corr_idx]
-            end
-        end
-    end
-    return nothing
-end
+#     @inbounds if (threadIdx().x - 1) == 0
+#          for antenna_idx = 1:NANT
+#             for corr_idx = 1:NCOR
+#                 partial_sum_re[blockIdx().x, antenna_idx, corr_idx] += cache[1 + 0 * iq_offset, antenna_idx, corr_idx]
+#                 partial_sum_im[blockIdx().x, antenna_idx, corr_idx] += cache[1 + 1 * iq_offset, antenna_idx, corr_idx]
+#             end
+#         end
+#     end
+#     return nothing
+# end
 
 function downconvert_and_correlate_kernel_4!(
     partial_sum_re,
@@ -948,7 +814,7 @@ function downconvert_and_accumulate_strided_kernel!(
     stride = blockDim().x * gridDim().x
     thread_idx = 1 + ((blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1))
     
-    for sample_idx = thread_idx:stride:num_samples
+    @inbounds for sample_idx = thread_idx:stride:num_samples
         # gen carrier replica
         carrier_replica_im[sample_idx], carrier_replica_re[sample_idx] = CUDA.sincos(2π * ((sample_idx - 1) * carrier_frequency / sampling_frequency + carrier_phase))
 
@@ -1148,7 +1014,8 @@ function kernel_algorithm(
     end
 end
 
-# KERNEL 2
+# KERNEL 2_3_cplx_multi
+# 2330
 function kernel_algorithm(
     threads_per_block,
     blocks_per_grid,
@@ -1162,22 +1029,25 @@ function kernel_algorithm(
     num_samples,
     num_of_shifts,
     code_length,
-    partial_sum,
+    accum_re,
+    accum_im,
+    phi_re,
+    phi_im,
     carrier_replica_re,
     carrier_replica_im,
     downconverted_signal_re,
     downconverted_signal_im,
     signal_re,
     signal_im,
-    correlator_sample_shifts,
+    correlator_sample_shifts::SVector{NCOR, Int64},
     carrier_frequency,
     carrier_phase,
-    num_ants,
+    num_ants::NumAnts{NANT},
     num_corrs,
-    algorithm::KernelAlgorithm{2}
-)
+    algorithm::KernelAlgorithm{2330}
+) where {NANT, NCOR}
     NVTX.@range "gen_code_replica_kernel!" begin
-        @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_kernel!(
+        @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_strided_kernel!(
             code_replica,
             codes,
             code_frequency,
@@ -1189,29 +1059,49 @@ function kernel_algorithm(
             code_length
         )
     end
-    NVTX.@range "downconvert_and_correlate_kernel_2!" begin
-        @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] shmem=shmem_size downconvert_and_correlate_kernel_2!(
-            partial_sum.re,
-            partial_sum.im,
+    NVTX.@range "downconvert_and_accumulate!" begin
+        @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] downconvert_and_accumulate_strided_kernel!(
+            accum_re,
+            accum_im,
+            code_replica,
             carrier_replica_re,
             carrier_replica_im,
             downconverted_signal_re,
             downconverted_signal_im,
             signal_re,
             signal_im,
-            code_replica,
-            correlator_sample_shifts,
             carrier_frequency,
             sampling_frequency,
             carrier_phase,
             num_samples,
-            NumAnts(num_ants)
+            num_ants,
+            correlator_sample_shifts
         )
     end
-    # return partial_sum
-    NVTX.@range "cuda_reduce_partial_sum" begin
-        cuda_reduce_partial_sum(partial_sum)
+    NVTX.@range "reduce_cplx_multi_3" begin
+        @cuda threads=threads_per_block[3] blocks=blocks_per_grid[3] shmem=shmem_size reduce_cplx_multi_3(
+            phi_re,
+            phi_im,
+            accum_re,
+            accum_im,
+            num_samples,
+            num_ants,
+            correlator_sample_shifts
+        )
     end
+    # print(Array(phi_re))
+    NVTX.@range "reduce_cplx_multi_3" begin
+        @cuda threads=threads_per_block[3] blocks=1 shmem=shmem_size reduce_cplx_multi_3(
+            phi_re,
+            phi_im,
+            phi_re,
+            phi_im,
+            blocks_per_grid[3],
+            num_ants,
+            correlator_sample_shifts
+        )
+    end
+    # print(Array(phi_re))
 end
 
 # KERNEL 4
