@@ -1,4 +1,4 @@
-@testset "Kernel Algorithm #1" begin
+@testset "Kernel Algorithm 1_3_cplx_multi" begin
     enable_gpu = Val(true)
     num_samples = 2500
     num_ants = 1
@@ -19,30 +19,69 @@
     block_dim_y = num_ants
     # keep num_corrs and num_ants in seperate dimensions, truncate num_samples accordingly to fit
     block_dim_x = prevpow(2, 512 ÷ block_dim_y ÷ block_dim_z)
-    threads_per_block = (block_dim_x, block_dim_y, block_dim_z)
+    threads_per_block = [(block_dim_x, block_dim_y, block_dim_z), 512]
     blocks_per_grid = cld(num_samples, block_dim_x)
     partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z), CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z)))
-    shmem_size = sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
-    @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size downconvert_and_correlate_kernel_1!(
-        partial_sum.re,
-        partial_sum.im,
-        signal.re,
-        signal.im,
+    shmem_size = [sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
+                sizeof(ComplexF32) * 512 * num_ants * num_correlators]
+    algorithm = KernelAlgorithm(1330)
+    
+    # @cuda threads=threads_per_block[1] blocks=blocks_per_grid shmem=shmem_size downconvert_and_correlate_kernel_1!(
+    #     partial_sum.re,
+    #     partial_sum.im,
+    #     signal.re,
+    #     signal.im,
+    #     codes,
+    #     code_frequency,
+    #     correlator_sample_shifts,
+    #     carrier_frequency,
+    #     sampling_frequency,
+    #     start_code_phase,
+    #     carrier_phase,
+    #     code_length,
+    #     prn,
+    #     num_samples,
+    #     num_ants,
+    #     num_correlators
+    # )
+    # @cuda threads=512 blocks=1 shmem=sizeof(ComplexF32)*512*num_ants*num_correlators reduce_cplx_multi_3(
+    #     partial_sum.re,
+    #     partial_sum.im,
+    #     partial_sum.re,
+    #     partial_sum.im,
+    #     blocks_per_grid,
+    #     NumAnts(num_ants),
+    #     correlator_sample_shifts
+    # )
+    kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        nothing,
         codes,
         code_frequency,
-        correlator_sample_shifts,
-        carrier_frequency,
         sampling_frequency,
         start_code_phase,
-        carrier_phase,
-        code_length,
         prn,
         num_samples,
-        num_ants,
-        num_correlators
-    )
+        num_of_shifts,
+        code_length,
+        partial_sum,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        NumAnts(num_ants),
+        nothing,
+        algorithm
+    )    
     CUDA.@allowscalar begin 
-        accumulators = vec(sum(Array(partial_sum), dims=1))
+        accumulators = vec(Array(partial_sum))
         accumulators_true = ComplexF32.([1476.0f0; 2500.0f0; 1476.0f0])
         @test accumulators ≈ accumulators_true
     end

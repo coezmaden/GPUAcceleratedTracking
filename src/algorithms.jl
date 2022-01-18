@@ -747,7 +747,7 @@ function downconvert_and_accumulate_strided_kernel!(
     return nothing
 end
 
-# KERNEL 1
+# KERNEL 1_3_cplx_multi
 function kernel_algorithm(
     threads_per_block,
     blocks_per_grid,
@@ -768,14 +768,14 @@ function kernel_algorithm(
     downconverted_signal_im,
     signal_re,
     signal_im,
-    correlator_sample_shifts,
+    correlator_sample_shifts::SVector{NCOR, Int64},
     carrier_frequency,
     carrier_phase,
-    num_ants,
+    num_ants::NumAnts{NANT},
     num_corrs,
-    algorithm::KernelAlgorithm{1}
-)
-    @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size downconvert_and_correlate_kernel_1!(
+    algorithm::KernelAlgorithm{1330};
+) where {NANT, NCOR}
+    @cuda threads=threads_per_block[1] blocks=blocks_per_grid shmem=shmem_size[1] downconvert_and_correlate_kernel_1!(
         partial_sum.re,
         partial_sum.im,
         signal_re,
@@ -790,10 +790,18 @@ function kernel_algorithm(
         code_length,
         prn,
         num_samples,
-        num_ants,
-        num_corrs
+        NANT,
+        NCOR
     )
-    cuda_reduce_partial_sum(partial_sum)
+    @cuda threads=512 blocks=1 shmem=shmem_size[2] reduce_cplx_multi_3(
+        partial_sum.re,
+        partial_sum.im,
+        partial_sum.re,
+        partial_sum.im,
+        blocks_per_grid,
+        num_ants,
+        correlator_sample_shifts
+    )
 end
 
 # KERNEL 2

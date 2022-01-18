@@ -74,14 +74,14 @@ function _run_kernel_benchmark(
     )
 end
 
-# GPU Kernel Benchmark for KernelAlgorithm 1
+# GPU Kernel Benchmark for KernelAlgorithm 1_3_cplx_multi
 function _run_kernel_benchmark(
     gnss,
     enable_gpu::Val{true},
     num_samples,
     num_ants,
     num_correlators,
-    algorithm::KernelAlgorithm{1}
+    algorithm::KernelAlgorithm{1330}
 )   
     # Generate GNSS object and signal information
     system = gnss(use_gpu = enable_gpu)
@@ -106,12 +106,13 @@ function _run_kernel_benchmark(
     block_dim_y = num_ants
     # keep num_corrs and num_ants in seperate dimensions, truncate num_samples accordingly to fit
     block_dim_x = prevpow(2, 512 ÷ block_dim_y ÷ block_dim_z)
-    threads_per_block = (block_dim_x, block_dim_y, block_dim_z)
+    threads_per_block = [(block_dim_x, block_dim_y, block_dim_z), 512]
     blocks_per_grid = cld(num_samples, block_dim_x)
     partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z), CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z)))
-    shmem_size = sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
-
-    @benchmark CUDA.@sync kernel_algorithm(
+    shmem_size = [sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
+                sizeof(ComplexF32) * 512 * num_ants * num_correlators]
+    Num_Ants = NumAnts(num_ants)
+    @benchmark CUDA.@sync $kernel_algorithm(
         $threads_per_block,
         $blocks_per_grid,
         $shmem_size,
@@ -134,8 +135,8 @@ function _run_kernel_benchmark(
         $correlator_sample_shifts,
         $carrier_frequency,
         $carrier_phase,
-        $num_ants,
-        $num_correlators,
+        $Num_Ants,
+        nothing,
         $algorithm
     )
 end

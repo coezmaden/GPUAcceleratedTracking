@@ -2,12 +2,12 @@ using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays
 @quickactivate "GPUAcceleratedTracking"
 
 allparams = Dict(
-    "processor"   => ["CPU"],
+    "processor"   => ["GPU"],
     "GNSS"  => ["GPSL1"],
-    "num_samples" => collect(2500:2500:50000),
+    "num_samples" => 2500,
     "num_ants" => [1],
     "num_correlators" => [3],
-    "algorithm" => [1]#, 2, 3, 4, 5, 6, 7]
+    "algorithm" => [1330]#, 2, 3, 4, 5, 6, 7]
 )
 
 dicts = dict_list(allparams)
@@ -20,7 +20,7 @@ dicts = dict_list(allparams)
 for (_, d) in enumerate(dicts)
     benchmark_results = run_kernel_benchmark(d)
     @tagsave(
-        datadir("benchmarks/kernel/test", savename("KernelBenchmark", d, "jld2")), 
+        datadir("benchmarks/kernel/test1", savename("KernelBenchmark", d, "jld2")), 
         benchmark_results
     )
 end
