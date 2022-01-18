@@ -141,6 +141,79 @@ function _run_kernel_benchmark(
     )
 end
 
+# GPU Kernel Benchmark for KernelAlgorithm 1_3_cplx_multi_texmem
+function _run_kernel_benchmark(
+    gnss,
+    enable_gpu::Val{true},
+    num_samples,
+    num_ants,
+    num_correlators,
+    algorithm::KernelAlgorithm{1331}
+)   
+    # Generate GNSS object and signal information
+    system = gnss(use_gpu = enable_gpu)
+    codes = system.codes
+    codes = CuTexture(
+        CuTextureArray(codes),
+        address_mode = CUDA.ADDRESS_MODE_WRAP,
+        interpolation = CUDA.NearestNeighbour(),
+        normalized_coordinates = true
+    )
+    code_frequency = get_code_frequency(system)
+    code_length = get_code_length(system)
+    start_code_phase = 0.0f0
+    carrier_phase = 0.0f0
+    carrier_frequency = 1500Hz
+    prn = 1
+
+    # Generate the signal
+    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants = NumAnts(num_ants), start_code_phase = start_code_phase, start_carrier_phase = carrier_phase)
+    
+    # Generate correlator
+    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
+    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
+    num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
+
+    # Generate CUDA kernel tuning parameters
+    block_dim_z = num_correlators
+    block_dim_y = num_ants
+    # keep num_corrs and num_ants in seperate dimensions, truncate num_samples accordingly to fit
+    block_dim_x = prevpow(2, 512 ÷ block_dim_y ÷ block_dim_z)
+    threads_per_block = [(block_dim_x, block_dim_y, block_dim_z), 1024]
+    blocks_per_grid = cld(num_samples, block_dim_x)
+    partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z), CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z)))
+    shmem_size = [sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
+                sizeof(ComplexF32) * 1024 * num_ants * num_correlators]
+    Num_Ants = NumAnts(num_ants)
+    @benchmark CUDA.@sync $kernel_algorithm(
+        $threads_per_block,
+        $blocks_per_grid,
+        $shmem_size,
+        nothing,
+        $codes,
+        $code_frequency,
+        $sampling_frequency,
+        $start_code_phase,
+        $prn,
+        $num_samples,
+        $num_of_shifts,
+        $code_length,
+        $partial_sum,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        $signal.re,
+        $signal.im,
+        $correlator_sample_shifts,
+        $carrier_frequency,
+        $carrier_phase,
+        $Num_Ants,
+        nothing,
+        $algorithm
+    )
+end
+
 # GPU Kernel Benchmark for KernelAlgorithm 2
 function _run_kernel_benchmark(
     gnss,
