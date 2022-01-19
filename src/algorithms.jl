@@ -428,7 +428,7 @@ function downconvert_and_correlate_kernel_3431!(
     num_ants::NumAnts{NANT}
 )  where {NCOR, NANT}
     cache = @cuDynamicSharedMem(Float32, (2 * blockDim().x, NANT, NCOR))
-    sample_idx   = 1 + ((2 * blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1)) # double the grid
+    sample_idx   = 1 + ((blockIdx().x - 1) * (2 * blockDim().x) + (threadIdx().x - 1)) # double the grid
     iq_offset = blockDim().x # indexing offset for complex values I/Q samples 
     cache_index = threadIdx().x - 1
 
@@ -517,7 +517,7 @@ function downconvert_and_correlate_kernel_4431!(
     num_ants::NumAnts{NANT}
 )  where {NCOR, NANT}
     cache = @cuDynamicSharedMem(Float32, (2 * blockDim().x, NANT, NCOR))
-    sample_idx   = 1 + ((2 * blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1)) # double the grid
+    sample_idx   = 1 + ((blockIdx().x - 1) * (2 * blockDim().x) + (threadIdx().x - 1)) # double the grid
     iq_offset = blockDim().x # indexing offset for complex values I/Q samples 
     cache_index = threadIdx().x - 1
 
@@ -581,8 +581,8 @@ function downconvert_and_correlate_kernel_4431!(
     @inbounds if threadIdx().x == 1
         for antenna_idx = 1:NANT
             for corr_idx = 1:NCOR
-                CUDA.@atomic accum_re[antenna_idx, corr_idx] += cache[1, antenna_idx, corr_idx]
-                CUDA.@atomic accum_im[antenna_idx, corr_idx] += cache[1, antenna_idx, corr_idx]
+                CUDA.@atomic accum_re[antenna_idx, corr_idx] += cache[1 + 0 * iq_offset, antenna_idx, corr_idx]
+                CUDA.@atomic accum_im[antenna_idx, corr_idx] += cache[1 + 1 * iq_offset, antenna_idx, corr_idx]
             end
         end
     end

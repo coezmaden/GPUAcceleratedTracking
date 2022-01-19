@@ -937,45 +937,45 @@ end
         )
     blocks_per_grid[1], threads_per_block[1] = launch_configuration(code_replica_kernel.fun)
     algorithm = KernelAlgorithm(3431)
-    @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_texture_mem_strided_kernel!(
-        code_replica,
-        codes,
-        code_frequency,
-        sampling_frequency,
-        start_code_phase,
-        prn,
-        num_samples,
-        num_of_shifts,
-        code_length
-    )
-    # launch with half the grid
-    @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] shmem=shmem_size[1] downconvert_and_correlate_kernel_3431!(
-        accum.re,
-        accum.im,
-        carrier_replica.re,
-        carrier_replica.im,
-        downconverted_signal.re,
-        downconverted_signal.im,
-        signal.re,
-        signal.im,
-        code_replica,
-        correlator_sample_shifts,
-        carrier_frequency,
-        sampling_frequency,
-        carrier_phase,
-        num_samples,
-        NumAnts(num_ants)
-    )
-    @cuda threads=threads_per_block[3] blocks=1 shmem=shmem_size[2] reduce_cplx_multi_4(
-        accum.re,
-        accum.im,
-        accum.re,
-        accum.im,
-        blocks_per_grid[2],
-        NumAnts(num_ants),
-        correlator_sample_shifts
-    )
-    Array(accum)
+    # @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_texture_mem_strided_kernel!(
+    #     code_replica,
+    #     codes,
+    #     code_frequency,
+    #     sampling_frequency,
+    #     start_code_phase,
+    #     prn,
+    #     num_samples,
+    #     num_of_shifts,
+    #     code_length
+    # )
+    # # launch with half the grid
+    # @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] shmem=shmem_size[1] downconvert_and_correlate_kernel_3431!(
+    #     accum.re,
+    #     accum.im,
+    #     carrier_replica.re,
+    #     carrier_replica.im,
+    #     downconverted_signal.re,
+    #     downconverted_signal.im,
+    #     signal.re,
+    #     signal.im,
+    #     code_replica,
+    #     correlator_sample_shifts,
+    #     carrier_frequency,
+    #     sampling_frequency,
+    #     carrier_phase,
+    #     num_samples,
+    #     NumAnts(num_ants)
+    # )
+    # @cuda threads=threads_per_block[3] blocks=1 shmem=shmem_size[2] reduce_cplx_multi_4(
+    #     accum.re,
+    #     accum.im,
+    #     accum.re,
+    #     accum.im,
+    #     blocks_per_grid[2],
+    #     NumAnts(num_ants),
+    #     correlator_sample_shifts
+    # )
+    # Array(accum)
     kernel_algorithm(
         threads_per_block,
         blocks_per_grid,
@@ -1004,8 +1004,9 @@ end
         nothing,
         algorithm
     )
+    Array(accum)
     CUDA.@allowscalar begin 
-        accumulators = Array(phi)[1, :, :]
+        accumulators = Array(accum)[1, :, :]
         accumulators_true = ComplexF32.([1476.0f0 2500.0f0 1476.0f0])
         @test accumulators ≈ accumulators_true
     end
@@ -1059,36 +1060,36 @@ end
         )
     blocks_per_grid[1], threads_per_block[1] = launch_configuration(code_replica_kernel.fun)
     algorithm = KernelAlgorithm(4431)
-    @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_texture_mem_strided_kernel!(
-        code_replica,
-        codes,
-        code_frequency,
-        sampling_frequency,
-        start_code_phase,
-        prn,
-        num_samples,
-        num_of_shifts,
-        code_length
-    )
-    # launch with half the grid
-    @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] shmem=shmem_size downconvert_and_correlate_kernel_4431!(
-        accum.re,
-        accum.im,
-        carrier_replica.re,
-        carrier_replica.im,
-        downconverted_signal.re,
-        downconverted_signal.im,
-        signal.re,
-        signal.im,
-        code_replica,
-        correlator_sample_shifts,
-        carrier_frequency,
-        sampling_frequency,
-        carrier_phase,
-        num_samples,
-        NumAnts(num_ants)
-    )
-    Array(accum)
+    # @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_texture_mem_strided_kernel!(
+    #     code_replica,
+    #     codes,
+    #     code_frequency,
+    #     sampling_frequency,
+    #     start_code_phase,
+    #     prn,
+    #     num_samples,
+    #     num_of_shifts,
+    #     code_length
+    # )
+    # # launch with half the grid
+    # @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] shmem=shmem_size downconvert_and_correlate_kernel_4431!(
+    #     accum.re,
+    #     accum.im,
+    #     carrier_replica.re,
+    #     carrier_replica.im,
+    #     downconverted_signal.re,
+    #     downconverted_signal.im,
+    #     signal.re,
+    #     signal.im,
+    #     code_replica,
+    #     correlator_sample_shifts,
+    #     carrier_frequency,
+    #     sampling_frequency,
+    #     carrier_phase,
+    #     num_samples,
+    #     NumAnts(num_ants)
+    # )
+    # Array(accum)
     kernel_algorithm(
         threads_per_block,
         blocks_per_grid,
@@ -1118,8 +1119,8 @@ end
         algorithm
     )
     CUDA.@allowscalar begin 
-        accumulators = Array(phi)[1, :, :]
-        accumulators_true = ComplexF32.([1476.0f0 2500.0f0 1476.0f0])
+        accumulators = Array(accum)[1, :, :]
+        accumulators_true = ComplexF32.([1476.0f0; 2500.0f0; 1476.0f0])
         @test accumulators ≈ accumulators_true
     end
 end
