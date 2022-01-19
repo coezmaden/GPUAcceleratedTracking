@@ -46,8 +46,8 @@ function gen_code_replica_strided_kernel!(
     # sample_idx converted to -1:2500 -> [-1 0 +1]
     stride = blockDim().x * gridDim().x
     thread_idx = 1 + ((blockIdx().x - 1) * blockDim().x + (threadIdx().x - 1))
-    for i = thread_idx:stride:num_samples+num_of_shifts
-        @inbounds code_replica[i] = codes[1+mod(floor(Int32, code_frequency/sampling_frequency * (i - num_of_shifts) + start_code_phase), code_length), prn]
+    @inbounds for i = thread_idx:stride:num_samples+num_of_shifts
+        code_replica[i] = codes[1+mod(floor(Int32, code_frequency/sampling_frequency * (i - num_of_shifts) + start_code_phase), code_length), prn]
     end
     
     return nothing   
@@ -1103,6 +1103,97 @@ function kernel_algorithm(
     end
     # print(Array(phi_re))
 end
+
+# KERNEL 2_3_cplx_multi_textmem
+# 2331
+function kernel_algorithm(
+    threads_per_block,
+    blocks_per_grid,
+    shmem_size,
+    code_replica,
+    codes,
+    code_frequency,
+    sampling_frequency,
+    start_code_phase,
+    prn,
+    num_samples,
+    num_of_shifts,
+    code_length,
+    accum_re,
+    accum_im,
+    phi_re,
+    phi_im,
+    carrier_replica_re,
+    carrier_replica_im,
+    downconverted_signal_re,
+    downconverted_signal_im,
+    signal_re,
+    signal_im,
+    correlator_sample_shifts::SVector{NCOR, Int64},
+    carrier_frequency,
+    carrier_phase,
+    num_ants::NumAnts{NANT},
+    num_corrs,
+    algorithm::KernelAlgorithm{2331}
+) where {NANT, NCOR}
+    NVTX.@range "gen_code_replica_kernel!" begin
+        @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_texture_mem_strided_kernel!(
+            code_replica,
+            codes,
+            code_frequency,
+            sampling_frequency,
+            start_code_phase,
+            prn,
+            num_samples,
+            num_of_shifts,
+            code_length
+        )
+    end
+    NVTX.@range "downconvert_and_accumulate!" begin
+        @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] downconvert_and_accumulate_strided_kernel!(
+            accum_re,
+            accum_im,
+            code_replica,
+            carrier_replica_re,
+            carrier_replica_im,
+            downconverted_signal_re,
+            downconverted_signal_im,
+            signal_re,
+            signal_im,
+            carrier_frequency,
+            sampling_frequency,
+            carrier_phase,
+            num_samples,
+            num_ants,
+            correlator_sample_shifts
+        )
+    end
+    NVTX.@range "reduce_cplx_multi_3" begin
+        @cuda threads=threads_per_block[3] blocks=blocks_per_grid[3] shmem=shmem_size reduce_cplx_multi_3(
+            phi_re,
+            phi_im,
+            accum_re,
+            accum_im,
+            num_samples,
+            num_ants,
+            correlator_sample_shifts
+        )
+    end
+    # print(Array(phi_re))
+    NVTX.@range "reduce_cplx_multi_3" begin
+        @cuda threads=threads_per_block[3] blocks=1 shmem=shmem_size reduce_cplx_multi_3(
+            phi_re,
+            phi_im,
+            phi_re,
+            phi_im,
+            blocks_per_grid[3],
+            num_ants,
+            correlator_sample_shifts
+        )
+    end
+    # print(Array(phi_re))
+end
+
 
 # KERNEL 4
 function kernel_algorithm(
