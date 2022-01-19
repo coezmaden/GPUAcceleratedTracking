@@ -48,6 +48,23 @@ const ALGODICT = Dict(
     "4_4_cplx_multi_textmem"    => 4431
 )
 
+const ALGODICTINV = Dict(
+    1300 => "1_3_pure"                   ,
+    1301 => "1_3_pure_textmem"           ,
+    1320 => "1_3_cplx"                   ,
+    1321 => "1_3_cplx_textmem"           ,
+    1320 => "1_3_cplx_multi"             ,
+    1321 => "1_3_cplx_multi_textmem"     ,
+    1430 => "1_4_cplx_multi"             ,
+    1431 => "1_4_cplx_multi_textmem"     ,
+    2330 => "2_3_cplx_multi"             ,
+    2331 => "2_3_cplx_multi_textmem"     ,
+    2430 => "2_4_cplx_multi"             ,
+    2431 => "2_4_cplx_multi_textmem"     ,
+    3430 => "3_4_cplx_multi"             ,
+    3431 => "3_4_cplx_multi_textmem"     ,
+    4431 => "4_4_cplx_multi_textmem"     
+)
 include("algorithms.jl")
 include("reduction.jl")
 include("gen_signal.jl")
