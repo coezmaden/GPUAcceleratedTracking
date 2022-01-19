@@ -802,54 +802,54 @@ end
     )
     blocks_per_grid[2], threads_per_block[2] = launch_configuration(downconvert_and_accumulate_kernel.fun)
     algorithm = KernelAlgorithm(2431)
-    # @cuda threads=threads_per_block[1] blocks=blocks_per_grid[1] gen_code_replica_texture_mem_strided_kernel!(
-    #     code_replica,
-    #     codes,
-    #     code_frequency,
-    #     sampling_frequency,
-    #     start_code_phase,
-    #     prn,
-    #     num_samples,
-    #     num_of_shifts,
-    #     code_length
-    # )
-    # @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] downconvert_and_accumulate_strided_kernel!(
-    #     accum.re,
-    #     accum.im,
-    #     code_replica,
-    #     carrier_replica.re,
-    #     carrier_replica.im,
-    #     downconverted_signal.re,
-    #     downconverted_signal.im,
-    #     signal.re,
-    #     signal.im,
-    #     carrier_frequency,
-    #     sampling_frequency,
-    #     carrier_phase,
-    #     num_samples,
-    #     NumAnts(num_ants),
-    #     correlator_sample_shifts
-    # )
-    # @cuda threads=threads_per_block[3] blocks=cld(blocks_per_grid[3], 2) shmem=shmem_size reduce_cplx_multi_4(
-    #     phi.re,
-    #     phi.im,
-    #     accum.re,
-    #     accum.im,
-    #     num_samples,
-    #     NumAnts(num_ants),
-    #     correlator_sample_shifts
-    # )
-    # # Array(phi)
-    # @cuda threads=threads_per_block[3] blocks=1 shmem=shmem_size reduce_cplx_multi_4(
-    #     phi.re,
-    #     phi.im,
-    #     phi.re,
-    #     phi.im,
-    #     blocks_per_grid[3],
-    #     NumAnts(num_ants),
-    #     correlator_sample_shifts
-    # )
-    # # Array(phi)
+    @benchmark CUDA.@sync @cuda threads=$threads_per_block[1] blocks=$blocks_per_grid[1] $gen_code_replica_texture_mem_strided_kernel!(
+        $code_replica,
+        $codes,
+        $code_frequency,
+        $sampling_frequency,
+        $start_code_phase,
+        $prn,
+        $num_samples,
+        $num_of_shifts,
+        $code_length
+    )
+    @benchmark CUDA.@sync @cuda threads=$threads_per_block[2] blocks=$blocks_per_grid[2] $downconvert_and_accumulate_strided_kernel!(
+        $accum.re,
+        $accum.im,
+        $code_replica,
+        $carrier_replica.re,
+        $carrier_replica.im,
+        $downconverted_signal.re,
+        $downconverted_signal.im,
+        $signal.re,
+        $signal.im,
+        $carrier_frequency,
+        $sampling_frequency,
+        $carrier_phase,
+        $num_samples,
+        $NumAnts(num_ants),
+        $correlator_sample_shifts
+    )
+    @benchmark CUDA.@sync @cuda threads=$threads_per_block[3] blocks=$cld(blocks_per_grid[3], 2) shmem=$shmem_size reduce_cplx_multi_4(
+        $phi.re,
+        $phi.im,
+        $accum.re,
+        $accum.im,
+        $num_samples,
+        $NumAnts(num_ants),
+        $correlator_sample_shifts
+    )
+    # Array(phi)
+    @cuda threads=threads_per_block[3] blocks=1 shmem=shmem_size reduce_cplx_multi_4(
+        phi.re,
+        phi.im,
+        phi.re,
+        phi.im,
+        blocks_per_grid[3],
+        NumAnts(num_ants),
+        correlator_sample_shifts
+    )
+    # Array(phi)
     kernel_algorithm(
         threads_per_block,
         blocks_per_grid,
