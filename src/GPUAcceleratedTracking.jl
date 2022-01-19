@@ -78,6 +78,7 @@ export
     downconvert_and_correlate_kernel_1431!,
     downconvert_and_correlate_kernel_3431!,
     downconvert_and_correlate_kernel_4431!,
+    downconvert_and_correlate_kernel_5431!,
     cpu_reduce_partial_sum,
     cuda_reduce_partial_sum,
     kernel_algorithm,

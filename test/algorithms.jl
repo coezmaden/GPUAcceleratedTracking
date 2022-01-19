@@ -1011,7 +1011,7 @@ end
     end
 end
 
-# @testset "Kernel Algorithm 4_4_cplx_multi_textmem" begin
+@testset "Kernel Algorithm 4_4_cplx_multi_textmem" begin
     enable_gpu = Val(true)
     num_samples = 2500
     num_ants = 1
@@ -1119,6 +1119,70 @@ end
     )
     CUDA.@allowscalar begin 
         accumulators = Array(phi)[1, :, :]
+        accumulators_true = ComplexF32.([1476.0f0 2500.0f0 1476.0f0])
+        @test accumulators ≈ accumulators_true
+    end
+end
+
+@testset "Kernel Algorithm 5_4_cplx_multi_textmem" begin
+    enable_gpu = Val(true)
+    num_samples = 2500
+    num_ants = 1
+    num_correlators = 3
+    system = GPSL1(use_gpu = enable_gpu)
+    codes = system.codes
+    #convert to text_mem
+    codes = CuTexture(
+        CuTextureArray(codes),
+        address_mode = CUDA.ADDRESS_MODE_WRAP,
+        interpolation = CUDA.NearestNeighbour(),
+        normalized_coordinates = true
+    )
+    code_frequency = get_code_frequency(system)
+    code_length = get_code_length(system)
+    start_code_phase = 0.0f0
+    carrier_phase = 0.0f0
+    carrier_frequency = 1500Hz
+    prn = 1
+    signal, sampling_frequency = gen_signal(system, prn, carrier_frequency, num_samples, num_ants = NumAnts(num_ants), start_code_phase = start_code_phase, start_carrier_phase = carrier_phase)
+    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
+    correlator_sample_shifts = get_correlator_sample_shifts(system, correlator, sampling_frequency, 0.5)
+    num_of_shifts = correlator_sample_shifts[end] - correlator_sample_shifts[1]
+    code_replica = CUDA.zeros(Float32, num_samples + num_of_shifts)
+    carrier_replica = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples), CUDA.zeros(Float32, num_samples)))
+    downconverted_signal = StructArray{ComplexF32}((CUDA.zeros(Float32, num_samples, num_ants), CUDA.zeros(Float32, num_samples, num_ants)))
+    threads_per_block = 512
+    blocks_per_grid = cld(num_samples, threads_per_block)
+    accum = StructArray{ComplexF32}((CUDA.zeros(Float32, (num_ants, length(correlator_sample_shifts))), CUDA.zeros(Float32, (num_ants, length(correlator_sample_shifts)))))
+    shmem_size = sizeof(ComplexF32) * threads_per_block * num_correlators * num_ants
+    # launch with half the grid
+    @cuda threads=threads_per_block blocks=cld(blocks_per_grid,2) shmem=shmem_size downconvert_and_correlate_kernel_5431!(
+        accum.re,
+        accum.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        codes,
+        code_length,
+        code_replica,
+        prn,
+        correlator_sample_shifts,
+        num_of_shifts,
+        code_frequency,
+        carrier_frequency,
+        sampling_frequency,
+        start_code_phase,
+        carrier_phase,
+        num_samples,
+        NumAnts(num_ants),
+    )
+    Array(accum)
+    
+    CUDA.@allowscalar begin 
+        accumulators = Array(accum)
         accumulators_true = ComplexF32.([1476.0f0 2500.0f0 1476.0f0])
         @test accumulators ≈ accumulators_true
     end
