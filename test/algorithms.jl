@@ -81,8 +81,8 @@
         algorithm
     )    
     CUDA.@allowscalar begin 
-        accumulators = vec(Array(partial_sum))
-        accumulators_true = ComplexF32.([1476.0f0; 2500.0f0; 1476.0f0])
+        accumulators = Array(partial_sum)[1, :, :]
+        accumulators_true = ComplexF32.([1476.0f0 2500.0f0 1476.0f0])
         @test accumulators ≈ accumulators_true
     end
 end
@@ -189,7 +189,7 @@ end
     CUDA.@allowscalar begin 
         accumulators = Array(partial_sum)[1 ,: ,:]
         accumulators_true = ComplexF32.([1476.0f0 2500.0f0 1476.0f0])
-        @test skip=true accumulators[1] ≈ accumulators_true[1] #text mem fail
+        @test accumulators[1] ≈ accumulators_true[1] #text mem fail
         @test accumulators[2] ≈ accumulators_true[2]
         @test accumulators[3] ≈ accumulators_true[3]
         @test accumulators ≈ accumulators_true
