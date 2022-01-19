@@ -44,7 +44,8 @@ const ALGODICT = Dict(
     "2_4_cplx_multi"            => 2430,
     "2_4_cplx_multi_textmem"    => 2431,
     "3_4_cplx_multi"            => 3430,
-    "3_4_cplx_multi_textmem"    => 3431
+    "3_4_cplx_multi_textmem"    => 3431,
+    "4_4_cplx_multi_textmem"    => 4431
 )
 
 include("algorithms.jl")
@@ -76,6 +77,7 @@ export
     downconvert_and_correlate_kernel_1331!,
     downconvert_and_correlate_kernel_1431!,
     downconvert_and_correlate_kernel_3431!,
+    downconvert_and_correlate_kernel_4431!,
     cpu_reduce_partial_sum,
     cuda_reduce_partial_sum,
     kernel_algorithm,
