@@ -18,7 +18,7 @@ function add_metadata!(benchmark_results_w_params, processor, algorithm::KernelA
     cpu_name == "unknown" ? "NVIDIA ARMv8" : cpu_name
 
     # Record CUDA version
-    cuda_version = string(CUDA.version()) : nothing
+    cuda_version = string(CUDA.version())
 
     # Get GPU name
     gpu_name = name(CUDA.CuDevice(0))
@@ -27,7 +27,7 @@ function add_metadata!(benchmark_results_w_params, processor, algorithm::KernelA
     benchmark_results_w_params["os"] = os_name
     benchmark_results_w_params["CPU_model"] = cpu_name
     benchmark_results_w_params["GPU_model"] = gpu_name
-    benchmark_results_w_params["CUDA"] = cuda_version : nothing
+    benchmark_results_w_params["CUDA"] = cuda_version
     processor == "GPU" ? benchmark_results_w_params["algorithm"] = ALGODICTINV[ALGN] : nothing
 end
 
@@ -144,6 +144,33 @@ function _run_kernel_benchmark(
         nothing,
         $algorithm
     )
+    # kernel_algorithm(
+    #     threads_per_block,
+    #     blocks_per_grid,
+    #     shmem_size,
+    #     nothing,
+    #     codes,
+    #     code_frequency,
+    #     sampling_frequency,
+    #     start_code_phase,
+    #     prn,
+    #     num_samples,
+    #     num_of_shifts,
+    #     code_length,
+    #     partial_sum,
+    #     nothing,
+    #     nothing,
+    #     nothing,
+    #     nothing,
+    #     signal.re,
+    #     signal.im,
+    #     correlator_sample_shifts,
+    #     carrier_frequency,
+    #     carrier_phase,
+    #     Num_Ants,
+    #     nothing,
+    #     algorithm
+    # )
 end
 
 # GPU Kernel Benchmark for KernelAlgorithm 1_3_cplx_multi_texmem
@@ -256,9 +283,19 @@ function _run_kernel_benchmark(
     block_dim_z = num_correlators
     block_dim_y = num_ants
     # keep num_corrs and num_ants in seperate dimensions, truncate num_samples accordingly to fit
-    block_dim_x = prevpow(2, 512 ÷ block_dim_y ÷ block_dim_z)
-    threads_per_block = [(block_dim_x, block_dim_y, block_dim_z), 1024]
-    blocks_per_grid = cld(num_samples, block_dim_x)
+    num_of_threads = 512
+    if num_ants == 1
+        num_of_threads = 512
+        if num_ants == 4
+            num_of_threads = 128
+            if num_ants == 16
+                num_of_threads = 128
+            end
+        end
+    end
+    block_dim_x = prevpow(2, num_of_threads ÷ block_dim_y ÷ block_dim_z)
+    threads_per_block = [(block_dim_x, block_dim_y, block_dim_z), num_of_threads]
+    blocks_per_grid = cld(cld(num_samples, block_dim_x), 2)
     partial_sum = StructArray{ComplexF32}((CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z), CUDA.zeros(Float32, blocks_per_grid, block_dim_y, block_dim_z)))
     shmem_size = [sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
                 sizeof(ComplexF32) * threads_per_block[2] * num_ants * num_correlators]
@@ -650,6 +687,11 @@ function _run_kernel_benchmark(
     )
     blocks_per_grid[2], threads_per_block[2] = launch_configuration(downconvert_and_accumulate_kernel.fun)
     Num_Ants=NumAnts(num_ants)
+    max_shmem = CUDA.attribute(device(), CUDA.DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
+    if max_shmem < shmem_size
+        threads_per_block[3] = max_shmem ÷ (sizeof(ComplexF32) * num_correlators * num_ants)
+        shmem_size = sizeof(ComplexF32) * threads_per_block[3] * num_correlators * num_ants
+    end
     @benchmark CUDA.@sync $kernel_algorithm(
         $threads_per_block,
         $blocks_per_grid,
@@ -736,6 +778,15 @@ function _run_kernel_benchmark(
         )
     blocks_per_grid[1], threads_per_block[1] = launch_configuration(code_replica_kernel.fun)
     Num_Ants=NumAnts(num_ants)
+    max_shmem = CUDA.attribute(device(), CUDA.DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
+    if max_shmem < shmem_size[1]
+        threads_per_block[2] = max_shmem ÷ (sizeof(ComplexF32) * num_correlators * num_ants)
+        shmem_size[2] = sizeof(ComplexF32) * threads_per_block[2] * num_correlators * num_ants
+    end
+    if max_shmem < shmem_size[2]
+        threads_per_block[3] = max_shmem ÷ (sizeof(ComplexF32) * num_correlators * num_ants)
+        shmem_size[2] = sizeof(ComplexF32) * threads_per_block[3] * num_correlators * num_ants
+    end
     @benchmark CUDA.@sync $kernel_algorithm(
         $threads_per_block,
         $blocks_per_grid,

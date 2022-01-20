@@ -844,7 +844,7 @@ function kernel_algorithm(
         )
     end
     NVTX.@range "reduce_cplx_multi_3" begin
-        @cuda threads=1024 blocks=1 shmem=shmem_size[2] reduce_cplx_multi_3(
+        @cuda threads=threads_per_block[2] blocks=1 shmem=shmem_size[2] reduce_cplx_multi_3(
             partial_sum.re,
             partial_sum.im,
             partial_sum.re,

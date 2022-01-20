@@ -13,3 +13,8 @@ raw_data_df = collect_results(datadir("benchmarks/kernel/kernelnaming1"))
 ## plot comparison of all kernels sweeping num_samples
 plot_min_exec_time(raw_data_df)
 plot_min_exec_time_gpu(raw_data_df)
+
+## plot comparison of all kernels sweeping num_samples
+# num_ants = 4
+plot_min_exec_time(raw_data_df, num_ants = 4)
+plot_min_exec_time_gpu(raw_data_df, num_ants = 4)

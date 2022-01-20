@@ -70,8 +70,7 @@ function plot_min_exec_time(raw_data_df::DataFrame; num_ants = 1, num_correlator
         legend = :bottomright,
         yaxis = (
             "Elapsed Time [s]",
-            :log10,
-            :grid,
+            :log10
         ),
         xaxis = (
             "Number of samples"
