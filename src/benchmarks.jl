@@ -23,7 +23,7 @@ function add_metadata!(benchmark_results_w_params, processor, algorithm::KernelA
     # Add metadata to the results
     benchmark_results_w_params["os"] = os_name
     benchmark_results_w_params[processor * " model"] = processor_name
-    benchmark_results_w_params["algorithm"] = ALGN
+    benchmark_results_w_params["algorithm"] = ALGODICTINV[ALGN]
 end
 
 # CPU Benchmark
@@ -907,7 +907,7 @@ end
 function run_kernel_benchmark(benchmark_params::Dict)
     @unpack GNSS, num_samples, num_ants, num_correlators, processor, algorithm = benchmark_params
     enable_gpu = (processor == "GPU" ? Val(true) : Val(false))
-    algorithm = KernelAlgorithm(algorithm)
+    algorithm = KernelAlgorithm(ALGODICT[algorithm])
     benchmark_results = _run_kernel_benchmark(
         GNSSDICT[GNSS], 
         enable_gpu,
