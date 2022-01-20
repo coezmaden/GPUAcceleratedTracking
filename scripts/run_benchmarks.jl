@@ -1,4 +1,4 @@
-using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays
+using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays, ProgressMeter
 @quickactivate "GPUAcceleratedTracking"
 
 allparams = Dict(
@@ -23,7 +23,7 @@ dicts = dict_list(allparams)
 #     @tagsave(datadir("benchmarks/track", savename("TrackFunctionBenchmark", d, "jld2")), benchmark_results)
 # end
 
-for (_, d) in enumerate(dicts)
+@showprogress 1 "Benchmarking kernel algorithms" for (_, d) in enumerate(dicts)
     benchmark_results = run_kernel_benchmark(d)
     @tagsave(
         datadir("benchmarks/kernel/kernelnaming1", savename("KernelBenchmark", d, "jld2")), 
