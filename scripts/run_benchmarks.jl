@@ -1,18 +1,19 @@
 using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays, ProgressMeter
 @quickactivate "GPUAcceleratedTracking"
 
+
 allparams = Dict(
-    "processor"   => ["GPU"],
+    "processor"   => ["CPU"],
     "GNSS"  => ["GPSL1"],
-    "num_samples" => 2500,
+    "num_samples" => 2 .^ (11:17),
     "num_ants" => [1],
     "num_correlators" => [3],
     "algorithm" => [
         "1_4_cplx_multi_textmem",
-        "2_4_cplx_multi_textmem",
-        "3_4_cplx_multi_textmem",
-        "4_4_cplx_multi_textmem",
-        "5_4_cplx_multi_textmem"
+        # "2_4_cplx_multi_textmem",
+        # "3_4_cplx_multi_textmem",
+        # "4_4_cplx_multi_textmem",
+        # "5_4_cplx_multi_textmem"
     ]
 )
 

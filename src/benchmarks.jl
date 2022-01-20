@@ -17,16 +17,17 @@ function add_metadata!(benchmark_results_w_params, processor, algorithm::KernelA
     # Workaround for NVIDIA Jetson CPU
     cpu_name == "unknown" ? "NVIDIA ARMv8" : cpu_name
 
-    # If GPU data, then record CUDA version
-    processor == "GPU" ? cuda_version = string(CUDA.version()) : nothing
+    # Record CUDA version
+    cuda_version = string(CUDA.version()) : nothing
 
-    # Get GPU name if GPU is selected, if not use cpu_name
-    processor_name = processor == "GPU" ? name(CUDA.CuDevice(0)) : cpu_name
+    # Get GPU name
+    gpu_name = name(CUDA.CuDevice(0))
 
     # Add metadata to the results
     benchmark_results_w_params["os"] = os_name
-    benchmark_results_w_params[processor * " model"] = processor_name
-    benchmark_results_w_params["CUDA"] = cuda_version
+    benchmark_results_w_params["CPU_model"] = cpu_name
+    benchmark_results_w_params["GPU_model"] = gpu_name
+    benchmark_results_w_params["CUDA"] = cuda_version : nothing
     processor == "GPU" ? benchmark_results_w_params["algorithm"] = ALGODICTINV[ALGN] : nothing
 end
 
