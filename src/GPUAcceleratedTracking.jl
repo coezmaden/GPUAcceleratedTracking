@@ -80,6 +80,7 @@ export
     run_kernel_benchmark,
     eval_results,
     plot_min_exec_time,
+    plot_min_exec_time_gpu,
     reduce_3,
     reduce_4,
     reduce_cplx_3,
