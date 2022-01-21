@@ -564,3 +564,61 @@ function reduce_cplx_multi_5(
 
     return nothing
 end
+
+# Complex reduction per Harris #5, multi correlator, multi antenna
+function reduce_cplx_multi_nant_5(
+    accum_re,
+    accum_im,
+    input_re,
+    input_im,
+    num_samples,
+    num_ants::NumAnts{NANT},
+) where {NANT}
+    ## define needed incides
+    # local thread index
+    tid = threadIdx().x 
+    # local antenna index
+    antenna_idx = blockIdx().y
+    # local sample index
+    sample_idx = (blockIdx().x - 1) * (2 * blockDim().x) + threadIdx().x;
+    
+    # allocate the shared memory for the partial sum
+    shmem = CuDynamicSharedArray(Float32, 2 * blockDim().x)
+
+    # each thread loads one element from global to shared memory
+    if sample_idx <= num_samples
+        @inbounds shmem[tid + 0 * blockDim().x] = input_re[sample_idx, antenna_idx]
+        @inbounds shmem[tid + 1 * blockDim().x] = input_im[sample_idx, antenna_idx]
+        if sample_idx + blockDim().x <= num_samples
+            @inbounds shmem[tid + 0 * blockDim().x] += input_re[sample_idx + blockDim().x, antenna_idx]
+            @inbounds shmem[tid + 1 * blockDim().x] += input_im[sample_idx + blockDim().x, antenna_idx]
+        end
+    end
+
+    # wait until all finished
+    sync_threads() 
+
+    # do (partial) reduction in shared memory
+    s::UInt32 = blockDim().x ÷ 2
+    while s > 32
+        sync_threads()
+        if tid - 1 < s
+            @inbounds shmem[tid + 0 * blockDim().x] += shmem[tid + s + 0 * blockDim().x]
+            @inbounds shmem[tid + 1 * blockDim().x] += shmem[tid + s + 1 * blockDim().x]
+        end
+        
+        s ÷= 2
+    end
+
+    if tid <= 32
+        warp_reduce_cplx(shmem, tid)
+    end
+
+    # first thread returns the result of reduction to global memory
+    if tid == 1
+        @inbounds accum_re[blockIdx().x, antenna_idx] = shmem[1 + 0 * blockDim().x] 
+        @inbounds accum_im[blockIdx().x, antenna_idx] = shmem[1 + 1 * blockDim().x]
+    end
+
+    return nothing
+end
