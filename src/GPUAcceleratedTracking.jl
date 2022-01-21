@@ -86,6 +86,7 @@ export
     plot_min_exec_time_gpu,
     reduce_3,
     reduce_4,
+    reduce_5,
     reduce_cplx_3,
     reduce_cplx_4,
     reduce_cplx_multi_3,
