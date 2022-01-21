@@ -15,6 +15,11 @@ plot_min_exec_time(raw_data_df)
 plot_min_exec_time_gpu(raw_data_df)
 
 ## plot comparison of all kernels sweeping num_samples
-# num_ants = 4
+# num_ants = 4, num_correlators = 3
 plot_min_exec_time(raw_data_df, num_ants = 4)
 plot_min_exec_time_gpu(raw_data_df, num_ants = 4)
+
+## plot comparison of all kernels sweeping num_samples
+# num_ants = 1, num_correlators = 7
+plot_min_exec_time(raw_data_df, num_correlators = 7)
+plot_min_exec_time_gpu(raw_data_df, num_correlators = 7)

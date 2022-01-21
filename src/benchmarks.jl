@@ -977,3 +977,178 @@ function run_kernel_benchmark(benchmark_params::Dict)
     add_metadata!(benchmark_results_w_params, processor, algorithm)
     return benchmark_results_w_params
 end
+
+function _bench_pure_reduction(num_samples, num_ants, num_correlators)
+    input = StructArray{ComplexF32}(
+        (
+            CUDA.ones(Float32, (num_samples, num_ants, num_correlators)),
+            CUDA.zeros(Float32, (num_samples, num_ants, num_correlators))
+        )
+    )
+    threads_per_block = 256
+    blocks_per_grid = cld(num_samples, threads_per_block)
+    accum = StructArray{ComplexF32}(
+        (
+            CUDA.zeros(Float32, (blocks_per_grid, num_ants, num_correlators)),
+            CUDA.zeros(Float32, (blocks_per_grid, num_ants, num_correlators))
+        )
+    )
+    shmem_size = sizeof(Float32) * threads_per_block 
+    max_shmem = CUDA.attribute(device(), CUDA.DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
+    if max_shmem < shmem_size
+        threads_per_block = max_shmem ÷ sizeof(ComplexF32)
+        shmem_size = sizeof(ComplexF32) * threads_per_block
+    end
+    return @benchmark CUDA.@sync begin
+        @inbounds for antenna_idx = 1:$num_ants
+            @inbounds for corr_idx = 1:$num_correlators
+                # re samples
+                @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_3(
+                    $view($accum.re, :, antenna_idx, corr_idx),
+                    $view($input.re, :, antenna_idx, corr_idx),
+                    $num_samples
+                )
+                # im samples
+                @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_3(
+                    $view($accum.im, :, antenna_idx, corr_idx),
+                    $view($input.im, :, antenna_idx, corr_idx),
+                    $num_samples
+                )
+            end
+        end
+        @inbounds for antenna_idx = 1:$num_ants
+            @inbounds for corr_idx = 1:$num_correlators
+                # re samples
+                @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size $reduce_3(
+                    $view($accum.re, :, antenna_idx, corr_idx),
+                    $view($accum.re, :, antenna_idx, corr_idx),
+                    $size($accum, 1)
+                )
+                # im samples
+                @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size $reduce_3(
+                    $view($accum.im, :, antenna_idx, corr_idx),
+                    $view($accum.im, :, antenna_idx, corr_idx),
+                    $size($accum, 1)
+                )
+            end
+        end
+    end
+end
+
+function _bench_cplx_reduction(num_samples, num_ants, num_correlators)
+    signal_duration = 0.001s
+    sampling_frequency = (num_samples/ustrip(signal_duration))Hz
+    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
+    correlator_sample_shifts = get_correlator_sample_shifts(GPSL1(), correlator, sampling_frequency, 0.5)
+    input = StructArray{ComplexF32}(
+        (
+            CUDA.ones(Float32, (num_samples, num_ants, num_correlators)),
+            CUDA.zeros(Float32, (num_samples, num_ants, num_correlators))
+        )
+    )
+    threads_per_block = 256
+    blocks_per_grid = cld(num_samples, threads_per_block)
+    accum = StructArray{ComplexF32}(
+        (
+            CUDA.zeros(Float32, (blocks_per_grid, num_ants, num_correlators)),
+            CUDA.zeros(Float32, (blocks_per_grid, num_ants, num_correlators))
+        )
+    )
+    shmem_size = sizeof(ComplexF32) * threads_per_block
+    max_shmem = CUDA.attribute(device(), CUDA.DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
+    if max_shmem < shmem_size
+        threads_per_block = max_shmem ÷ (sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators)
+        shmem_size = sizeof(ComplexF32) * threads_per_block
+    end
+    return @benchmark CUDA.@sync begin
+        @inbounds for antenna_idx = 1:$num_ants
+            @inbounds for corr_idx = 1:$num_correlators
+                @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_cplx_3(
+                    $view($accum.re, :, antenna_idx, corr_idx),
+                    $view($accum.im, :, antenna_idx, corr_idx),
+                    $view($input.re, :, antenna_idx, corr_idx),
+                    $view($input.im, :, antenna_idx, corr_idx),
+                    $num_samples
+                )
+            end
+        end
+        @inbounds for antenna_idx = 1:$num_ants
+            @inbounds for corr_idx = 1:$num_correlators
+                @cuda threads=$threads_per_block blocks=$1 shmem=$shmem_size $reduce_cplx_3(
+                    $view($accum.re, :, antenna_idx, corr_idx),
+                    $view($accum.im, :, antenna_idx, corr_idx),
+                    $view($accum.re, :, antenna_idx, corr_idx),
+                    $view($accum.im, :, antenna_idx, corr_idx),
+                    $size($accum, 1)
+                )
+            end
+        end
+    end
+end
+
+function _bench_cplx_multi_reduction(num_samples, num_ants, num_correlators)
+    signal_duration = 0.001s
+    sampling_frequency = (num_samples/ustrip(signal_duration))Hz
+    correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
+    correlator_sample_shifts = get_correlator_sample_shifts(GPSL1(), correlator, sampling_frequency, 0.5)
+    input = StructArray{ComplexF32}(
+        (
+            CUDA.ones(Float32, (num_samples, num_ants, num_correlators)),
+            CUDA.zeros(Float32, (num_samples, num_ants, num_correlators))
+        )
+    )
+    threads_per_block = 256
+    blocks_per_grid = cld(num_samples, threads_per_block)
+    accum = StructArray{ComplexF32}(
+        (
+            CUDA.zeros(Float32, (blocks_per_grid, num_ants, num_correlators)),
+            CUDA.zeros(Float32, (blocks_per_grid, num_ants, num_correlators))
+        )
+    )
+    shmem_size = sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators
+    max_shmem = CUDA.attribute(device(), CUDA.DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
+    if max_shmem < shmem_size
+        threads_per_block = max_shmem ÷ (sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators)
+        shmem_size = sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators
+    end
+    Num_Ants = NumAnts(num_ants)
+    return @benchmark CUDA.@sync begin
+        @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size reduce_cplx_multi_3(
+            $accum.re,
+            $accum.im,
+            $input.re,
+            $input.im,
+            $num_samples,
+            $Num_Ants,
+            $correlator_sample_shifts
+        )
+        @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size reduce_cplx_multi_3(
+            $accum.re,
+            $accum.im,
+            $accum.re,
+            $accum.im,
+            $blocks_per_grid,
+            $Num_Ants,
+            $correlator_sample_shifts
+        )
+    end
+end
+
+function run_reduction_benchmark(benchmark_params::Dict)
+    @unpack num_samples, num_ants, num_correlators, algorithm = benchmark_params
+    if algorithm == 1
+        #benchmark pure
+        benchmark_results = _bench_pure_reduction(num_samples, num_ants, num_correlators)
+        if algorithm == 2
+            #benchmark cplx
+            benchmark_results = _bench_cplx_reduction(num_samples, num_ants, num_correlators)
+            if algorithm == 3
+                #benchmark cplx multi
+                benchmark_results = _bench_cplx_multi_reduction(num_samples, num_ants, num_correlators)
+            end
+        end
+    end
+    benchmark_results_w_params = copy(benchmark_params)
+    add_results!(benchmark_results_w_params, benchmark_results)
+    return benchmark_results_w_params
+end

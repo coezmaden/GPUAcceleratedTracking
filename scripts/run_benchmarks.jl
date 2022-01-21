@@ -10,7 +10,7 @@ allparams = Dict(
     "num_correlators" => [7],
     "algorithm" => [
         # "1_4_cplx_multi_textmem",
-        "2_4_cplx_multi_textmem",
+        # "2_4_cplx_multi_textmem",
         "3_4_cplx_multi_textmem",
         "4_4_cplx_multi_textmem",
         "5_4_cplx_multi_textmem"

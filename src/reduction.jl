@@ -109,7 +109,7 @@ function reduce_cplx_multi_3(
     # double the memory for complex values, accessed via
     # iq_offset
     shmem = @cuDynamicSharedMem(Float32, (2 * threads_per_block, NANT, NCOR))
-    for antenna_idx = 1:NANT
+    @inbounds for antenna_idx = 1:NANT
         for corr_idx = 1:NCOR
             shmem[thread_idx + 0 * iq_offset, antenna_idx, corr_idx]
             shmem[thread_idx + 1 * iq_offset, antenna_idx, corr_idx]
@@ -269,7 +269,7 @@ function reduce_cplx_4(
     return nothing
 end
 
-# Complex reduction per Harris #3, multi correlator, multi antenna
+# Complex reduction per Harris #4, multi correlator, multi antenna
 function reduce_cplx_multi_4(
     accum_re,
     accum_im,
