@@ -470,3 +470,97 @@ function reduce_cplx_5(
 
     return nothing
 end
+
+@inline function warp_reduce_cplx_multi(shmem, tid, antenna_idx, corr_idx)
+    shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 0 * blockDim().x + 32, antenna_idx, corr_idx]
+    shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 0 * blockDim().x + 16, antenna_idx, corr_idx]
+    shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 0 * blockDim().x + 8, antenna_idx, corr_idx]
+    shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 0 * blockDim().x + 4, antenna_idx, corr_idx]
+    shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 0 * blockDim().x + 2, antenna_idx, corr_idx]
+    shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 0 * blockDim().x + 1, antenna_idx, corr_idx]
+    shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 1 * blockDim().x + 32, antenna_idx, corr_idx]
+    shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 1 * blockDim().x + 16, antenna_idx, corr_idx]
+    shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 1 * blockDim().x + 8, antenna_idx, corr_idx]
+    shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 1 * blockDim().x + 4, antenna_idx, corr_idx]
+    shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 1 * blockDim().x + 2, antenna_idx, corr_idx]
+    shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + 1 * blockDim().x + 1, antenna_idx, corr_idx]
+end
+
+# Complex reduction per Harris #5, multi correlator, multi antenna
+function reduce_cplx_multi_5(
+    accum_re,
+    accum_im,
+    input_re,
+    input_im,
+    num_samples,
+    num_ants::NumAnts{NANT},
+    correlator_sample_shifts::SVector{NCOR, Int64}
+) where {NANT, NCOR}
+    ## define needed incides
+    # local thread index
+    tid = threadIdx().x 
+    # global thread index
+    idx = (2 * blockDim().x) * (blockIdx().x - 1) + threadIdx().x
+    
+    # allocate the shared memory for the partial sum
+    shmem = CuDynamicSharedArray(Float32, 2 * blockDim().x)
+
+    # each thread loads one element from global to shared memory
+    # AND
+    # does the first level of reduction
+    if idx <= num_samples
+        for antenna_idx = 1:NANT
+            for corr_idx = 1:NCOR
+                @inbounds shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] = input_re[idx, antenna_idx, corr_idx]
+                @inbounds shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] = input_im[idx, antenna_idx, corr_idx]
+                
+                if idx + blockDim().x <= num_samples
+                    @inbounds shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] += input_re[idx + blockDim().x, antenna_idx, corr_idx]
+                    @inbounds shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] += input_im[idx + blockDim().x, antenna_idx, corr_idx]
+                end
+            end
+        end
+    end
+
+    # wait until all finished
+    sync_threads() 
+
+    # do (partial) reduction in shared memory
+    s::UInt32 = blockDim().x ÷ 2
+    while s > 32
+        sync_threads()
+        if tid - 1 < s
+            for antenna_idx = 1:NANT
+                for corr_idx = 1:NCOR
+                    @inbounds shmem[tid + 0 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + s + 0 * blockDim().x, antenna_idx, corr_idx]
+                    @inbounds shmem[tid + 1 * blockDim().x, antenna_idx, corr_idx] += shmem[tid + s + 1 * blockDim().x, antenna_idx, corr_idx]
+                end
+            end
+        end
+        
+        s ÷= 2
+    end
+
+    # once three size = warp size, do warp reduction
+    # assumes block size >= 64
+    if tid <= 32
+        for antenna_idx = 1:NANT
+            for corr_idx = 1:NCOR
+                warp_reduce_cplx_multi(shmem, tid, antenna_idx, corr_idx)
+                sync_threads()
+            end
+        end
+    end
+
+    # first thread returns the result of reduction to global memory
+    if tid == 1
+        for antenna_idx = 1:NANT
+            for corr_idx = 1:NCOR
+                @inbounds accum_re[blockIdx().x, antenna_idx, corr_idx] = shmem[1 + 0 * blockDim().x, antenna_idx, corr_idx]
+                @inbounds accum_im[blockIdx().x, antenna_idx, corr_idx] = shmem[1 + 1 * blockDim().x, antenna_idx, corr_idx]
+            end
+        end
+    end
+
+    return nothing
+end

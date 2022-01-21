@@ -92,6 +92,7 @@ export
     reduce_cplx_5,
     reduce_cplx_multi_3,
     reduce_cplx_multi_4,
+    reduce_cplx_multi_5,
     gen_code_replica_kernel!,
     gen_code_replica_strided_kernel!,
     gen_code_replica_texture_mem_kernel!,
