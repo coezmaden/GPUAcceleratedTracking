@@ -359,9 +359,7 @@ function reduce_5(accum, input, num_samples)
     idx = (2 * blockDim().x) * (blockIdx().x - 1) + threadIdx().x
 
     # define shared memory
-    # shmem = @cuDynamicSharedMem(Float32, blockDim().x)
     shmem = CuDynamicSharedArray(Float32, blockDim().x)
-    # shmem[tid] = 0.0f0
 
     # each thread loads one element into the shared memory
     # and performs the first level of reduction
@@ -380,7 +378,6 @@ function reduce_5(accum, input, num_samples)
     while s > 32
         if tid - 1 < s
             @inbounds shmem[tid] += shmem[tid + s]
-            # @cuprintln "shmem[$tid] = $(shmem[tid])"
         end
         sync_threads()
         s ÷= 2
@@ -395,6 +392,80 @@ function reduce_5(accum, input, num_samples)
     # first thread holds the result of the (partial) reduction
     if tid == 1
         @inbounds accum[blockIdx().x] = shmem[1]
+    end
+
+    return nothing
+end
+
+@inline function warp_reduce_cplx(shmem, tid)
+    shmem[tid + 0 * blockDim().x] += shmem[tid + 0 * blockDim().x + 32]
+    shmem[tid + 0 * blockDim().x] += shmem[tid + 0 * blockDim().x + 16]
+    shmem[tid + 0 * blockDim().x] += shmem[tid + 0 * blockDim().x + 8]
+    shmem[tid + 0 * blockDim().x] += shmem[tid + 0 * blockDim().x + 4]
+    shmem[tid + 0 * blockDim().x] += shmem[tid + 0 * blockDim().x + 2]
+    shmem[tid + 0 * blockDim().x] += shmem[tid + 0 * blockDim().x + 1]
+    shmem[tid + 1 * blockDim().x] += shmem[tid + 1 * blockDim().x + 32]
+    shmem[tid + 1 * blockDim().x] += shmem[tid + 1 * blockDim().x + 16]
+    shmem[tid + 1 * blockDim().x] += shmem[tid + 1 * blockDim().x + 8]
+    shmem[tid + 1 * blockDim().x] += shmem[tid + 1 * blockDim().x + 4]
+    shmem[tid + 1 * blockDim().x] += shmem[tid + 1 * blockDim().x + 2]
+    shmem[tid + 1 * blockDim().x] += shmem[tid + 1 * blockDim().x + 1]
+end
+
+# Complex reduction per Harris #5
+function reduce_cplx_5(
+    accum_re,
+    accum_im,
+    input_re,
+    input_im,
+    num_samples
+)
+    ## define needed incides
+    # local thread index
+    tid = threadIdx().x 
+    # global thread index
+    idx = (2 * blockDim().x) * (blockIdx().x - 1) + threadIdx().x
+    
+    # define shared memory
+    shmem = CuDynamicSharedArray(Float32, 2 * blockDim().x)
+
+    # each thread loads one element into the shared memory
+    # and performs the first level of reduction
+    if idx <= num_samples
+        @inbounds shmem[tid + 0 * blockDim().x] = input_re[idx]
+        @inbounds shmem[tid + 1 * blockDim().x] = input_im[idx]
+        
+        if idx + blockDim().x <= num_samples
+            @inbounds shmem[tid + 0 * blockDim().x] += input_re[idx + blockDim().x]
+            @inbounds shmem[tid + 1 * blockDim().x] += input_im[idx + blockDim().x]
+        end
+    end
+
+    # wait untill all threads have finished
+    sync_threads() 
+
+    # do tree-like (partial) reduction in shared memory
+    s::UInt32 = blockDim().x ÷ 2
+    while s > 32
+        sync_threads()
+        if tid - 1 < s
+            @inbounds shmem[tid + 0 * blockDim().x] += shmem[tid + s + 0 * blockDim().x]
+            @inbounds shmem[tid + 1 * blockDim().x] += shmem[tid + s + 1 * blockDim().x]
+        end
+        
+        s ÷= 2
+    end
+
+    # once three size = warp size, do warp reduction
+    # assumes block size >= 64
+    if tid <= 32
+        warp_reduce_cplx(shmem, tid)
+    end
+
+    # first thread holds the result of the (partial) reduction
+    if tid == 1
+        @inbounds accum_re[blockIdx().x] = shmem[1 + 0 * blockDim().x]
+        @inbounds accum_im[blockIdx().x] = shmem[1 + 1 * blockDim().x]
     end
 
     return nothing

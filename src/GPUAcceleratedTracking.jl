@@ -89,6 +89,7 @@ export
     reduce_5,
     reduce_cplx_3,
     reduce_cplx_4,
+    reduce_cplx_5,
     reduce_cplx_multi_3,
     reduce_cplx_multi_4,
     gen_code_replica_kernel!,
