@@ -17,7 +17,7 @@ function plot_min_exec_time(raw_data_df::DataFrame; num_ants = 1, num_correlator
     elapsed_min_times_cpu_df = raw_data_df |> 
         @filter(
             _.processor         == "CPU"            &&
-            _.os                == "windows"        &&
+            _.os                == os               &&
             _.num_ants          == num_ants         &&
             _.num_correlators   == num_correlators            
             ) |>
@@ -49,7 +49,7 @@ function plot_min_exec_time(raw_data_df::DataFrame; num_ants = 1, num_correlator
     yline = range(10 ^ (-3), 10 ^ (-3), length(samples)) # line showing real time execution bound
 
     # xs
-    xs = samples
+    xs = samples / 0.001 # convert to Hz
 
     # labeling
     # labels = ["1" "2" "3" "4" "5" "CPU"]
@@ -62,20 +62,19 @@ function plot_min_exec_time(raw_data_df::DataFrame; num_ants = 1, num_correlator
     # cpu_name = unique((raw_data_df[!, :CPU_model]))[1] # no need for indexing in the future
     # gpu_name = unique((raw_data_df[!, :GPU_model]))[2] # no need for indexing in the future
 
-    plot(
+    pl = plot(
         xs,
         data,
-        title = "Elapsed time", #on $(gpu_name) and $(cpu_name)",
+        title = "Correlation processing time of a 1ms GPSL1 signal\nfor $(num_ants) antenna and $(num_correlators) correlators.", #on $(gpu_name) and $(cpu_name)",
         label = labels,
         legend = :bottomright,
-        yaxis = (
-            "Elapsed Time [s]",
-            :log10
-        ),
-        xaxis = (
-            "Number of samples"
-        ),
+        shape = [:circle]
     )
+    plot!(size=(1000,600))
+    hline!(yline, line = (:dash, :grey))
+    yaxis!("Processing Time [s]", :log10, (10^(-6), 10^(-2)), minorgrid=true)
+    xaxis!("Sampling Frequency [Hz]", :log10, (10^(6), 2*10^(8)), minorgrid = true)
+    return pl
 end
 
 function plot_min_exec_time_gpu(raw_data_df::DataFrame; num_ants = 1, num_correlators = 3, os = "windows")
@@ -110,7 +109,7 @@ function plot_min_exec_time_gpu(raw_data_df::DataFrame; num_ants = 1, num_correl
     yline = range(10 ^ (-3), 10 ^ (-3), length(samples)) # line showing real time execution bound
 
     # xs
-    xs = samples
+    xs = samples / 0.001 # convert to Hz
 
     # labeling
     labels = permutedims(algorithm_names)
@@ -124,21 +123,17 @@ function plot_min_exec_time_gpu(raw_data_df::DataFrame; num_ants = 1, num_correl
     # metadata
     # gpu_name = unique((raw_data_df[!, :GPU_model]))[2] # no need for indexing in the future
     
-    plot(
+    pl = plot(
         xs,
         data,
-        title = "Elapsed time", #on $(gpu_name)",
+        title = "Correlation processing time of a 1ms GPSL1 signal\nfor $(num_ants) antenna and $(num_correlators) correlators.", #on $(gpu_name) and $(cpu_name)",
         label = labels,
         legend = :bottomright,
-        color = colors,
-        shape = [:circle],
-        yaxis = (
-            "Elapsed Time [s]",
-            :log10,
-            :grid,
-        ),
-        xaxis = (
-            "Number of samples"
-        ),
+        shape = [:circle]
     )
+    plot!(size=(1000,600))
+    hline!(yline, line = (:dash, :grey))
+    yaxis!("Processing Time [s]", :log10, (10^(-6), 10^(-2)), minorgrid=true)
+    xaxis!("Sampling Frequency [Hz]", :log10, (10^(6), 2*10^(8)), minorgrid = true)
+    return pl
 end

@@ -1026,7 +1026,7 @@ end
     end
 end
 
-# @testset "Kernel Algorithm 4_4_cplx_multi_textmem" begin
+@testset "Kernel Algorithm 4_4_cplx_multi_textmem" begin
     enable_gpu = Val(true)
     num_samples = 2500
     num_ants = 1
