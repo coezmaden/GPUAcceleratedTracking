@@ -4,11 +4,12 @@ using DrWatson, PrettyTables, Query, DataFrames
 # Generate params for signals
 using GPUAcceleratedTracking, DataFrames, Plots, PGFPlotsX
 
-# df = collect_results(datadir("benchmarks/track"))
-# df = collect_results(datadir("benchmarks/kernel"))
-# df = collect_results(datadir("benchmarks/kernel/test"))
+# raw_data_df = collect_results(datadir("benchmarks/track"))
+# raw_data_df = collect_results(datadir("benchmarks/kernel"))
+# raw_data_df = collect_results(datadir("benchmarks/kernel/test"))
 raw_data_df = collect_results(datadir("benchmarks/kernel/jetson"))
 # raw_data_df = collect_results(datadir("benchmarks/kernel/kernelnaming1"))
+# raw_data_df = collect_results(datadir("benchmarks/kernel/cuda-elapsed"))
 
 ## plot comparison of all kernels sweeping num_samples
 plot_min_exec_time(raw_data_df)
