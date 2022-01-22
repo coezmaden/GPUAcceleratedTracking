@@ -3,10 +3,10 @@ using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays, Pro
 
 
 allparams = Dict(
-    "processor"   => ["CPU"],
+    "processor"   => ["GPU"],
     "GNSS"  => ["GPSL1"],
     "num_samples" => 2 .^ (11:17),
-    "num_ants" => [1],
+    "num_ants" => [4],
     "num_correlators" => [3],
     "algorithm" => [
         "1_4_cplx_multi_textmem",
