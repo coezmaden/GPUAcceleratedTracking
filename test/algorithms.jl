@@ -1103,6 +1103,23 @@ end
         num_samples,
         NumAnts(num_ants)
     )
+    @belapsed CUDA.@sync @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] shmem=shmem_size downconvert_and_correlate_kernel_4431!(
+        accum.re,
+        accum.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        code_replica,
+        correlator_sample_shifts,
+        carrier_frequency,
+        sampling_frequency,
+        carrier_phase,
+        num_samples,
+        NumAnts(num_ants)
+    )
     @cuda threads=threads_per_block[2] blocks=blocks_per_grid[2] shmem=shmem_size downconvert_and_correlate_kernel_4431!(
         accum.re,
         accum.im,
@@ -1156,7 +1173,7 @@ end
     end
 end
 
-@testset "Kernel Algorithm 4_4_cplx_multi_textmem_3d" begin
+# @testset "Kernel Algorithm 4_4_cplx_multi_textmem_3d" begin
     enable_gpu = Val(true)
     num_samples = 2048
     num_ants = 4
@@ -1252,7 +1269,7 @@ end
         num_samples,
         NumAnts(num_ants)
     )
-    CUDA.@elapsed @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size downconvert_and_correlate_kernel_3d_4431!(
+    @belapsed CUDA.@sync @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size downconvert_and_correlate_kernel_3d_4431!(
         accum.re,
         accum.im,
         signal.re,

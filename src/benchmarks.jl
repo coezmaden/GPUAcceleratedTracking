@@ -1,13 +1,3 @@
-function add_results!(benchmark_results_w_params, benchmark_results)
-    benchmark_results_w_params["TrialObj"] = benchmark_results
-    benchmark_results_w_params["RawTimes"] = benchmark_results.times
-    benchmark_results_w_params["Minimum"] = minimum(benchmark_results).time
-    benchmark_results_w_params["Median"] = median(benchmark_results).time
-    benchmark_results_w_params["Mean"] = mean(benchmark_results).time
-    benchmark_results_w_params["σ"] = std(benchmark_results).time
-    benchmark_results_w_params["Maximum"] = maximum(benchmark_results).time
-end
-
 function add_metadata!(benchmark_results_w_params, processor, algorithm::KernelAlgorithm{ALGN}) where ALGN
     # Get OS info
     os_name = @static Sys.iswindows() ? "windows" : (@static Sys.isapple() ? "macos" : @static Sys.islinux() ? "linux" : @static Sys.isunix() ? "generic_unix" : throw("Can't determine OS name"))
@@ -15,7 +5,7 @@ function add_metadata!(benchmark_results_w_params, processor, algorithm::KernelA
     # Get CPU info
     cpu_name = Sys.cpu_info()[1].model
     # Workaround for NVIDIA Jetson CPU
-    cpu_name == "unknown" ? "NVIDIA ARMv8" : cpu_name
+    cpu_name == "unknown" ? cpu_name = "NVIDIA ARMv8" : cpu_name
 
     # Record CUDA version
     cuda_version = string(CUDA.version())
@@ -60,7 +50,7 @@ function _run_kernel_benchmark(
     downconverted_signal_temp = Tracking.get_downconverted_signal(state)
     downconverted_signal = Tracking.resize!(downconverted_signal_temp, size(signal, 1), signal)
 
-    @benchmark Tracking.downconvert_and_correlate!(
+    @belapsed Tracking.downconvert_and_correlate!(
         $system,
         $signal,
         $correlator,
@@ -73,7 +63,7 @@ function _run_kernel_benchmark(
         $correlator_sample_shifts,
         $carrier_frequency,
         $sampling_frequency,
-        1,
+        $1,
         $num_samples,
         $prn
     )
@@ -117,32 +107,59 @@ function _run_kernel_benchmark(
     shmem_size = [sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
                 sizeof(ComplexF32) * 1024 * num_ants * num_correlators]
     Num_Ants = NumAnts(num_ants)
-    @benchmark CUDA.@sync $kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
+    kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
         nothing,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $partial_sum,
-        nothing,
-        nothing,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        partial_sum,
         nothing,
         nothing,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $Num_Ants,
         nothing,
-        $algorithm
+        nothing,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
+    )
+    CUDA.@elapsed kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        nothing,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        partial_sum,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
     )
     # kernel_algorithm(
     #     threads_per_block,
@@ -217,32 +234,59 @@ function _run_kernel_benchmark(
     shmem_size = [sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
                 sizeof(ComplexF32) * 1024 * num_ants * num_correlators]
     Num_Ants = NumAnts(num_ants)
-    @benchmark CUDA.@sync $kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
+    kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
         nothing,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $partial_sum,
-        nothing,
-        nothing,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        partial_sum,
         nothing,
         nothing,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $Num_Ants,
         nothing,
-        $algorithm
+        nothing,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
+    )
+    CUDA.@elapsed kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        nothing,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        partial_sum,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
     )
 end
 
@@ -300,32 +344,59 @@ function _run_kernel_benchmark(
     shmem_size = [sizeof(ComplexF32) * block_dim_x * block_dim_y * block_dim_z
                 sizeof(ComplexF32) * threads_per_block[2] * num_ants * num_correlators]
     Num_Ants = NumAnts(num_ants)
-    @benchmark CUDA.@sync $kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
+    kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
         nothing,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $partial_sum,
-        nothing,
-        nothing,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        partial_sum,
         nothing,
         nothing,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $Num_Ants,
         nothing,
-        $algorithm
+        nothing,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
+    )
+    CUDA.@elapsed kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        nothing,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        partial_sum,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
     )
 end
 
@@ -391,35 +462,65 @@ function _run_kernel_benchmark(
     )
     blocks_per_grid[2], threads_per_block[2] = launch_configuration(downconvert_and_accumulate_kernel.fun)
     Num_Ants=NumAnts(num_ants)
-    @benchmark CUDA.@sync $kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $accum.re,
-        $accum.im,
-        $phi.re,
-        $phi.im,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $Num_Ants,
+    kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        phi.re,
+        phi.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
         nothing,
-        $algorithm
+        algorithm
+    )
+    CUDA.@elapsed kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        phi.re,
+        phi.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
     )
 end
 
@@ -492,35 +593,65 @@ function _run_kernel_benchmark(
     )
     blocks_per_grid[2], threads_per_block[2] = launch_configuration(downconvert_and_accumulate_kernel.fun)
     Num_Ants=NumAnts(num_ants)
-    @benchmark CUDA.@sync $kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $accum.re,
-        $accum.im,
-        $phi.re,
-        $phi.im,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $Num_Ants,
+    kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        phi.re,
+        phi.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
         nothing,
-        $algorithm
+        algorithm
+    )
+    CUDA.@elapsed kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        phi.re,
+        phi.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
     )
 end
 
@@ -586,35 +717,65 @@ function _run_kernel_benchmark(
     )
     blocks_per_grid[2], threads_per_block[2] = launch_configuration(downconvert_and_accumulate_kernel.fun)
     Num_Ants=NumAnts(num_ants)
-    @benchmark CUDA.@sync $kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $accum.re,
-        $accum.im,
-        $phi.re,
-        $phi.im,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $Num_Ants,
+    kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        phi.re,
+        phi.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
         nothing,
-        $algorithm
+        algorithm
+    )
+    CUDA.@elapsed kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        phi.re,
+        phi.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
     )
 end
 
@@ -692,35 +853,65 @@ function _run_kernel_benchmark(
         threads_per_block[3] = max_shmem ÷ (sizeof(ComplexF32) * num_correlators * num_ants)
         shmem_size = sizeof(ComplexF32) * threads_per_block[3] * num_correlators * num_ants
     end
-    @benchmark CUDA.@sync $kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $accum.re,
-        $accum.im,
-        $phi.re,
-        $phi.im,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $Num_Ants,
+    kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        phi.re,
+        phi.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
         nothing,
-        $algorithm
+        algorithm
+    )
+    CUDA.@elapsed kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        phi.re,
+        phi.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
     )
 end
 
@@ -787,33 +978,61 @@ function _run_kernel_benchmark(
         threads_per_block[3] = max_shmem ÷ (sizeof(ComplexF32) * num_correlators * num_ants)
         shmem_size[2] = sizeof(ComplexF32) * threads_per_block[3] * num_correlators * num_ants
     end
-    @benchmark CUDA.@sync $kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $accum.re,
-        $accum.im,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $Num_Ants,
-        $nothing,
-        $algorithm
+    kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
+    )
+    CUDA.@elapsed kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
     )
 end
 
@@ -869,33 +1088,61 @@ function _run_kernel_benchmark(
         )
     blocks_per_grid[1], threads_per_block[1] = launch_configuration(code_replica_kernel.fun)
     Num_Ants=NumAnts(num_ants)
-    @benchmark CUDA.@sync $kernel_algorithm(
-        $threads_per_block,
-        $blocks_per_grid,
-        $shmem_size,
-        $code_replica,
-        $codes,
-        $code_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $prn,
-        $num_samples,
-        $num_of_shifts,
-        $code_length,
-        $accum.re,
-        $accum.im,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $correlator_sample_shifts,
-        $carrier_frequency,
-        $carrier_phase,
-        $Num_Ants,
-        $nothing,
-        $algorithm
+    kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
+    )
+    CUDA.@elapsed kernel_algorithm(
+        threads_per_block,
+        blocks_per_grid,
+        shmem_size,
+        code_replica,
+        codes,
+        code_frequency,
+        sampling_frequency,
+        start_code_phase,
+        prn,
+        num_samples,
+        num_of_shifts,
+        code_length,
+        accum.re,
+        accum.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        correlator_sample_shifts,
+        carrier_frequency,
+        carrier_phase,
+        Num_Ants,
+        nothing,
+        algorithm
     )
 end
 
@@ -935,28 +1182,51 @@ function _run_kernel_benchmark(
     accum = StructArray{ComplexF32}((CUDA.zeros(Float32, (num_ants, length(correlator_sample_shifts))), CUDA.zeros(Float32, (num_ants, length(correlator_sample_shifts)))))
     shmem_size = sizeof(ComplexF32) * threads_per_block * num_correlators * num_ants
     Num_Ants = NumAnts(num_ants)
-    @benchmark CUDA.@sync @cuda threads=$threads_per_block blocks=$cld($blocks_per_grid,2) shmem=$shmem_size $downconvert_and_correlate_kernel_5431!(
-        $accum.re,
-        $accum.im,
-        $carrier_replica.re,
-        $carrier_replica.im,
-        $downconverted_signal.re,
-        $downconverted_signal.im,
-        $signal.re,
-        $signal.im,
-        $codes,
-        $code_length,
-        $code_replica,
-        $prn,
-        $correlator_sample_shifts,
-        $num_of_shifts,
-        $code_frequency,
-        $carrier_frequency,
-        $sampling_frequency,
-        $start_code_phase,
-        $carrier_phase,
-        $num_samples,
-        $Num_Ants,
+    @cuda threads=threads_per_block blocks=cld(blocks_per_grid,2) shmem=shmem_size downconvert_and_correlate_kernel_5431!(
+        accum.re,
+        accum.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        codes,
+        code_length,
+        code_replica,
+        prn,
+        correlator_sample_shifts,
+        num_of_shifts,
+        code_frequency,
+        carrier_frequency,
+        sampling_frequency,
+        start_code_phase,
+        carrier_phase,
+        num_samples,
+        Num_Ants,
+    )
+    CUDA.@elapsed @cuda threads=threads_per_block blocks=cld(blocks_per_grid,2) shmem=shmem_size downconvert_and_correlate_kernel_5431!(
+        accum.re,
+        accum.im,
+        carrier_replica.re,
+        carrier_replica.im,
+        downconverted_signal.re,
+        downconverted_signal.im,
+        signal.re,
+        signal.im,
+        codes,
+        code_length,
+        code_replica,
+        prn,
+        correlator_sample_shifts,
+        num_of_shifts,
+        code_frequency,
+        carrier_frequency,
+        sampling_frequency,
+        start_code_phase,
+        carrier_phase,
+        num_samples,
+        Num_Ants,
     )
 end
 
@@ -973,7 +1243,7 @@ function run_kernel_benchmark(benchmark_params::Dict)
         algorithm
     )
     benchmark_results_w_params = copy(benchmark_params)
-    add_results!(benchmark_results_w_params, benchmark_results)
+    benchmark_results_w_params["time"] = benchmark_results
     add_metadata!(benchmark_results_w_params, processor, algorithm)
     return benchmark_results_w_params
 end
@@ -999,36 +1269,36 @@ function _bench_pure_reduction(num_samples, num_ants, num_correlators)
         threads_per_block = max_shmem ÷ sizeof(ComplexF32)
         shmem_size = sizeof(ComplexF32) * threads_per_block
     end
-    return @benchmark CUDA.@sync begin
-        @inbounds for antenna_idx = 1:$num_ants
-            @inbounds for corr_idx = 1:$num_correlators
+    return CUDA.@elapsed begin
+        @inbounds for antenna_idx = 1:num_ants
+            @inbounds for corr_idx = 1:num_correlators
                 # re samples
-                @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_3(
-                    $view($accum.re, :, antenna_idx, corr_idx),
-                    $view($input.re, :, antenna_idx, corr_idx),
-                    $num_samples
+                @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size reduce_3(
+                    view(accum.re, :, antenna_idx, corr_idx),
+                    view(input.re, :, antenna_idx, corr_idx),
+                    num_samples
                 )
                 # im samples
-                @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_3(
-                    $view($accum.im, :, antenna_idx, corr_idx),
-                    $view($input.im, :, antenna_idx, corr_idx),
-                    $num_samples
+                @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size reduce_3(
+                    view(accum.im, :, antenna_idx, corr_idx),
+                    view(input.im, :, antenna_idx, corr_idx),
+                    num_samples
                 )
             end
         end
-        @inbounds for antenna_idx = 1:$num_ants
-            @inbounds for corr_idx = 1:$num_correlators
+        @inbounds for antenna_idx = 1:num_ants
+            @inbounds for corr_idx = 1:num_correlators
                 # re samples
-                @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size $reduce_3(
-                    $view($accum.re, :, antenna_idx, corr_idx),
-                    $view($accum.re, :, antenna_idx, corr_idx),
-                    $size($accum, 1)
+                @cuda threads=threads_per_block blocks=1 shmem=shmem_size reduce_3(
+                    view(accum.re, :, antenna_idx, corr_idx),
+                    view(accum.re, :, antenna_idx, corr_idx),
+                    size(accum, 1)
                 )
                 # im samples
-                @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size $reduce_3(
-                    $view($accum.im, :, antenna_idx, corr_idx),
-                    $view($accum.im, :, antenna_idx, corr_idx),
-                    $size($accum, 1)
+                @cuda threads=threads_per_block blocks=1 shmem=shmem_size reduce_3(
+                    view(accum.im, :, antenna_idx, corr_idx),
+                    view(accum.im, :, antenna_idx, corr_idx),
+                    size(accum, 1)
                 )
             end
         end
@@ -1060,26 +1330,26 @@ function _bench_cplx_reduction(num_samples, num_ants, num_correlators)
         threads_per_block = max_shmem ÷ (sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators)
         shmem_size = sizeof(ComplexF32) * threads_per_block
     end
-    return @benchmark CUDA.@sync begin
-        @inbounds for antenna_idx = 1:$num_ants
-            @inbounds for corr_idx = 1:$num_correlators
-                @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size $reduce_cplx_3(
-                    $view($accum.re, :, antenna_idx, corr_idx),
-                    $view($accum.im, :, antenna_idx, corr_idx),
-                    $view($input.re, :, antenna_idx, corr_idx),
-                    $view($input.im, :, antenna_idx, corr_idx),
-                    $num_samples
+    return CUDA.@elapsed begin
+        @inbounds for antenna_idx = 1:num_ants
+            @inbounds for corr_idx = 1:num_correlators
+                @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size reduce_cplx_3(
+                    view(accum.re, :, antenna_idx, corr_idx),
+                    view(accum.im, :, antenna_idx, corr_idx),
+                    view(input.re, :, antenna_idx, corr_idx),
+                    view(input.im, :, antenna_idx, corr_idx),
+                    num_samples
                 )
             end
         end
-        @inbounds for antenna_idx = 1:$num_ants
-            @inbounds for corr_idx = 1:$num_correlators
-                @cuda threads=$threads_per_block blocks=$1 shmem=$shmem_size $reduce_cplx_3(
-                    $view($accum.re, :, antenna_idx, corr_idx),
-                    $view($accum.im, :, antenna_idx, corr_idx),
-                    $view($accum.re, :, antenna_idx, corr_idx),
-                    $view($accum.im, :, antenna_idx, corr_idx),
-                    $size($accum, 1)
+        @inbounds for antenna_idx = 1:num_ants
+            @inbounds for corr_idx = 1:num_correlators
+                @cuda threads=threads_per_block blocks=1 shmem=shmem_size reduce_cplx_3(
+                    view(accum.re, :, antenna_idx, corr_idx),
+                    view(accum.im, :, antenna_idx, corr_idx),
+                    view(accum.re, :, antenna_idx, corr_idx),
+                    view(accum.im, :, antenna_idx, corr_idx),
+                    size(accum, 1)
                 )
             end
         end
@@ -1112,24 +1382,24 @@ function _bench_cplx_multi_reduction(num_samples, num_ants, num_correlators)
         shmem_size = sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators
     end
     Num_Ants = NumAnts(num_ants)
-    return @benchmark CUDA.@sync begin
-        @cuda threads=$threads_per_block blocks=$blocks_per_grid shmem=$shmem_size reduce_cplx_multi_3(
-            $accum.re,
-            $accum.im,
-            $input.re,
-            $input.im,
-            $num_samples,
-            $Num_Ants,
-            $correlator_sample_shifts
+    return CUDA.@elapsed begin
+        @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size reduce_cplx_multi_3(
+            accum.re,
+            accum.im,
+            input.re,
+            input.im,
+            num_samples,
+            Num_Ants,
+            correlator_sample_shifts
         )
-        @cuda threads=$threads_per_block blocks=1 shmem=$shmem_size reduce_cplx_multi_3(
-            $accum.re,
-            $accum.im,
-            $accum.re,
-            $accum.im,
-            $blocks_per_grid,
-            $Num_Ants,
-            $correlator_sample_shifts
+        @cuda threads=threads_per_block blocks=1 shmem=shmem_size reduce_cplx_multi_3(
+            accum.re,
+            accum.im,
+            accum.re,
+            accum.im,
+            blocks_per_grid,
+            Num_Ants,
+            correlator_sample_shifts
         )
     end
 end
