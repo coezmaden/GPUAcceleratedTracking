@@ -1,19 +1,18 @@
 using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays, ProgressMeter
 @quickactivate "GPUAcceleratedTracking"
 
-
 allparams = Dict(
     "processor"   => ["GPU"],
     "GNSS"  => ["GPSL1"],
     "num_samples" => 2 .^ (11:17),
-    "num_ants" => [4],
-    "num_correlators" => [3],
+    "num_ants" => [1],
+    "num_correlators" => [7],
     "algorithm" => [
-        "1_4_cplx_multi_textmem",
-        # "2_4_cplx_multi_textmem",
-        # "3_4_cplx_multi_textmem",
-        # "4_4_cplx_multi_textmem",
-        # "5_4_cplx_multi_textmem"
+        # "1_4_cplx_multi_textmem",
+        "2_4_cplx_multi_textmem",
+        "3_4_cplx_multi_textmem",
+        "4_4_cplx_multi_textmem",
+        "5_4_cplx_multi_textmem"
     ]
 )
 
@@ -27,7 +26,7 @@ dicts = dict_list(allparams)
 @showprogress 1 "Benchmarking kernel algorithms" for (_, d) in enumerate(dicts)
     benchmark_results = run_kernel_benchmark(d)
     @tagsave(
-        datadir("benchmarks/kernel/cuda-elapsed", savename("KernelBenchmark", d, "jld2")), 
+        datadir("benchmarks/kernel/belapsed", savename("KernelBenchmark", d, "jld2")), 
         benchmark_results
     )
 end
