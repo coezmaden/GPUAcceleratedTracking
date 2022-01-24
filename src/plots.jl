@@ -1,8 +1,9 @@
-function plot_min_exec_time(raw_data_df::DataFrame; num_ants = 1, num_correlators = 3, os = "windows")
+function plot_min_exec_time(raw_data_df::DataFrame; num_ants = 1, num_correlators = 3, os = "windows", gnss = "GPSL1")
     elapsed_min_times_gpu_df = raw_data_df |> 
         @filter(
             _.processor         == "GPU"            &&
             _.os                == os               &&
+            _.GNSS              == gnss             &&
             _.num_ants          == num_ants         &&
             _.num_correlators   == num_correlators    
             ) |>
@@ -18,6 +19,7 @@ function plot_min_exec_time(raw_data_df::DataFrame; num_ants = 1, num_correlator
         @filter(
             _.processor         == "CPU"            &&
             _.os                == os               &&
+            _.GNSS              == gnss             &&
             _.num_ants          == num_ants         &&
             _.num_correlators   == num_correlators            
             ) |>
@@ -65,7 +67,7 @@ function plot_min_exec_time(raw_data_df::DataFrame; num_ants = 1, num_correlator
     pl = plot(
         xs,
         data,
-        title = "Correlation processing time of a 1ms GPSL1 signal\nfor $(num_ants) antenna and $(num_correlators) correlators.", #on $(gpu_name) and $(cpu_name)",
+        title = "Correlation processing time of a 1ms $(gnss) signal\nfor $(num_ants) antenna and $(num_correlators) correlators.", #on $(gpu_name) and $(cpu_name)",
         label = labels,
         legend = :bottomright,
         shape = [:circle]
@@ -77,11 +79,12 @@ function plot_min_exec_time(raw_data_df::DataFrame; num_ants = 1, num_correlator
     return pl
 end
 
-function plot_min_exec_time_gpu(raw_data_df::DataFrame; num_ants = 1, num_correlators = 3, os = "windows")
+function plot_min_exec_time_gpu(raw_data_df::DataFrame; num_ants = 1, num_correlators = 3, os = "windows", gnss="GPSL1")
     elapsed_min_times_gpu_df = raw_data_df |> 
         @filter(
             _.processor         == "GPU"            &&
             _.os                == os               &&
+            _.GNSS              == gnss             &&
             _.num_ants          == num_ants         &&
             _.num_correlators   == num_correlators    
             ) |>
@@ -126,7 +129,7 @@ function plot_min_exec_time_gpu(raw_data_df::DataFrame; num_ants = 1, num_correl
     pl = plot(
         xs,
         data,
-        title = "Correlation processing time of a 1ms GPSL1 signal\nfor $(num_ants) antenna and $(num_correlators) correlators.", #on $(gpu_name) and $(cpu_name)",
+        title = "Correlation processing time of a 1ms $(gnss) signal\nfor $(num_ants) antenna and $(num_correlators) correlators.", #on $(gpu_name) and $(cpu_name)",
         label = labels,
         legend = :bottomright,
         shape = [:circle]
