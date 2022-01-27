@@ -5,7 +5,7 @@ using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays, Pro
 allparams = Dict(
     "processor"   => ["GPU"],
     "GNSS"  => ["GPSL5"],
-    "num_samples" => 2 .^ (15:22),
+    "num_samples" => 2 .^ (15:21),
     "num_ants" => [1],
     "num_correlators" => [7],
     "algorithm" => [

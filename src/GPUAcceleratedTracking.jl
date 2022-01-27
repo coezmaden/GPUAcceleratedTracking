@@ -24,6 +24,11 @@ end
 
 KernelAlgorithm(x) = KernelAlgorithm{x}()
 
+struct ReductionAlgorithm{x}
+end
+
+ReductionAlgorithm(x) = ReductionAlgorithm{x}()
+
 const GNSSDICT = Dict(
     "GPSL1" => GPSL1,
     "GPSL5" => GPSL5,
@@ -47,6 +52,12 @@ const ALGODICT = Dict(
     "3_4_cplx_multi_textmem"    => 3431,
     "4_4_cplx_multi_textmem"    => 4431,
     "5_4_cplx_multi_textmem"    => 5431
+)
+
+const REDDICT = Dict(
+    "pure" => ReductionAlgorithm(1),
+    "cplx" => ReductionAlgorithm(2),
+    "cplx_multi" => ReductionAlgorithm(3)
 )
 
 const ALGODICTINV = Dict(
@@ -91,6 +102,7 @@ export
     reduce_cplx_4,
     reduce_cplx_5,
     reduce_cplx_multi_3,
+    reduce_cplx_multi_31,
     reduce_cplx_multi_4,
     reduce_cplx_multi_5,
     reduce_cplx_multi_nant_5,
@@ -111,6 +123,7 @@ export
     cpu_reduce_partial_sum,
     cuda_reduce_partial_sum,
     kernel_algorithm,
-    KernelAlgorithm
+    KernelAlgorithm,
+    ReductionAlgorithm
 
 end

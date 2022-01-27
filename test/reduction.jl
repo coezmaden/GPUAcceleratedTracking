@@ -148,7 +148,7 @@ end
     # end
 end
 
-@testset "Complex Multi Reduction #3 per Harris" begin
+# @testset "Complex Multi Reduction #3 per Harris" begin
     num_samples = 2500
     num_ants = 1
     num_correlators = 3
@@ -169,7 +169,7 @@ end
         )
     )
     shmem_size = sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators
-    @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size reduce_cplx_multi_3(
+    @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size reduce_cplx_multi_31(
         accum.re,
         accum.im,
         input.re,
@@ -178,7 +178,7 @@ end
         NumAnts(num_ants),
         correlator_sample_shifts
     )
-    @cuda threads=threads_per_block blocks=1 shmem=shmem_size reduce_cplx_multi_3(
+    @cuda threads=threads_per_block blocks=1 shmem=shmem_size reduce_cplx_multi_31(
         accum.re,
         accum.im,
         accum.re,

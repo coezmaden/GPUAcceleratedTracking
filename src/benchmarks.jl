@@ -978,7 +978,7 @@ function run_kernel_benchmark(benchmark_params::Dict)
     return benchmark_results_w_params
 end
 
-function _bench_pure_reduction(num_samples, num_ants, num_correlators)
+function _bench_reduction(num_samples, num_ants, num_correlators, algorithm::ReductionAlgorithm{1})
     input = StructArray{ComplexF32}(
         (
             CUDA.ones(Float32, (num_samples, num_ants, num_correlators)),
@@ -996,8 +996,8 @@ function _bench_pure_reduction(num_samples, num_ants, num_correlators)
     shmem_size = sizeof(Float32) * threads_per_block 
     max_shmem = CUDA.attribute(device(), CUDA.DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
     if max_shmem < shmem_size
-        threads_per_block = max_shmem ÷ sizeof(ComplexF32)
-        shmem_size = sizeof(ComplexF32) * threads_per_block
+        threads_per_block =prevpow(2, max_shmem ÷ (sizeof(ComplexF32) * num_ants * num_correlators))
+        shmem_size = sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators
     end
     return @benchmark CUDA.@sync begin
         @inbounds for antenna_idx = 1:$num_ants
@@ -1035,7 +1035,7 @@ function _bench_pure_reduction(num_samples, num_ants, num_correlators)
     end
 end
 
-function _bench_cplx_reduction(num_samples, num_ants, num_correlators)
+function _bench_reduction(num_samples, num_ants, num_correlators, algorithm::ReductionAlgorithm{2})
     signal_duration = 0.001s
     sampling_frequency = (num_samples/ustrip(signal_duration))Hz
     correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
@@ -1057,8 +1057,8 @@ function _bench_cplx_reduction(num_samples, num_ants, num_correlators)
     shmem_size = sizeof(ComplexF32) * threads_per_block
     max_shmem = CUDA.attribute(device(), CUDA.DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
     if max_shmem < shmem_size
-        threads_per_block = max_shmem ÷ (sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators)
-        shmem_size = sizeof(ComplexF32) * threads_per_block
+        threads_per_block =prevpow(2, max_shmem ÷ (sizeof(ComplexF32) * num_ants * num_correlators))
+        shmem_size = sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators
     end
     return @benchmark CUDA.@sync begin
         @inbounds for antenna_idx = 1:$num_ants
@@ -1086,7 +1086,7 @@ function _bench_cplx_reduction(num_samples, num_ants, num_correlators)
     end
 end
 
-function _bench_cplx_multi_reduction(num_samples, num_ants, num_correlators)
+function _bench_reduction(num_samples, num_ants, num_correlators, algorithm::ReductionAlgorithm{3})
     signal_duration = 0.001s
     sampling_frequency = (num_samples/ustrip(signal_duration))Hz
     correlator = EarlyPromptLateCorrelator(NumAnts(num_ants), NumAccumulators(num_correlators))
@@ -1108,7 +1108,7 @@ function _bench_cplx_multi_reduction(num_samples, num_ants, num_correlators)
     shmem_size = sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators
     max_shmem = CUDA.attribute(device(), CUDA.DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
     if max_shmem < shmem_size
-        threads_per_block = max_shmem ÷ (sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators)
+        threads_per_block =prevpow(2, max_shmem ÷ (sizeof(ComplexF32) * num_ants * num_correlators))
         shmem_size = sizeof(ComplexF32) * threads_per_block * num_ants * num_correlators
     end
     Num_Ants = NumAnts(num_ants)
@@ -1136,19 +1136,12 @@ end
 
 function run_reduction_benchmark(benchmark_params::Dict)
     @unpack num_samples, num_ants, num_correlators, algorithm = benchmark_params
-    if algorithm == 1
-        #benchmark pure
-        benchmark_results = _bench_pure_reduction(num_samples, num_ants, num_correlators)
-        if algorithm == 2
-            #benchmark cplx
-            benchmark_results = _bench_cplx_reduction(num_samples, num_ants, num_correlators)
-            if algorithm == 3
-                #benchmark cplx multi
-                benchmark_results = _bench_cplx_multi_reduction(num_samples, num_ants, num_correlators)
-            end
-        end
-    end
+    algorithm_obj = REDDICT[algorithm]
+    benchmark_results = _bench_reduction(num_samples, num_ants, num_correlators, algorithm_obj)
     benchmark_results_w_params = copy(benchmark_params)
-    add_results!(benchmark_results_w_params, benchmark_results)
+    benchmark_results_w_params["Minimum"] = minimum(benchmark_results).time
+    benchmark_results_w_params["Mean"] = mean(benchmark_results).time
+    benchmark_results_w_params["Median"] = median(benchmark_results).time
+    benchmark_results_w_params["Std"] = std(benchmark_results).time
     return benchmark_results_w_params
 end
