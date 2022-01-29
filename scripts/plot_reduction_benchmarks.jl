@@ -5,8 +5,8 @@ raw_data_df = collect_results(datadir("benchmarks/reduction"))
 
 num_ants = 4; num_correlators = 3;
 
-using Query;
-elapsed_min_times = raw_data_df |> 
+using Query, Makie, CairoMakie, ColorSchemes
+elapsed_times = raw_data_df |> 
 @filter(
     _.num_ants          == num_ants         &&
     _.num_correlators   == num_correlators    
@@ -16,44 +16,64 @@ elapsed_min_times = raw_data_df |>
         _.num_samples,
         _.algorithm,
         _.Minimum,
+        _.Median,
+        _.Mean,
+        _.Std
     }
 ) |> DataFrame
 
-sort!(elapsed_min_times, :num_samples)
-samples = unique(Vector{Int64}(elapsed_min_times[!, :num_samples]))
-algorithm_names = unique(Vector{String}(elapsed_min_times[!, :algorithm]))
+sort!(elapsed_times, :num_samples)
+samples = unique(Vector{Int64}(elapsed_times[!, :num_samples]))
+algorithm_names = unique(Vector{String}(elapsed_times[!, :algorithm]))
 
-using Makie, CairoMakie
-using CairoMakie
-let
-    x = LinRange(-10,10,200)
-    fig = Figure(resolution = (700, 450))
-    ax = Axis(fig, xlabel = "x", ylabel = "y")
-    # filled curve 1
-    band!(x, sin.(x), sin.(x) .+ 1; color = ("#E69F00", 0.2))
-    # filled curve 2
-    band!(x, cos.(x), 1 .+ cos.(x); color = (:red, 0.2))
-    fig[1,1] = ax
-    fig
-    #save("Bands.png"), fig, px_per_unit = 2.0)
-end
+## BAR PLOT
+# get the data to plot
+samples = unique(Vector{Int64}(elapsed_times[!, :num_samples]))
+mindata = reshape(elapsed_times.Minimum, (length(algorithm_names), length(samples)))
+mediandata = reshape(elapsed_times.Median, (length(algorithm_names), length(samples)))
+meandata = reshape(elapsed_times.Mean, (length(algorithm_names), length(samples)))
+stddata = reshape(elapsed_times.Std, (length(algorithm_names), length(samples)))
+algorithm_names = unique(Vector{String}(elapsed_times[!, :algorithm]))
 
+# defines figure and axes    
+fig_bar = Figure(font = "Times New Roman")
+ax_bar = Axis(
+    fig_bar,
+    xlabel = "Number of elements",
+    ylabel = "Processing Time [s]",
+    xscale = log10,
+    # yscale = log10,
+    title = "Reduction Algorithm Comparison for M = 4, L = 3",
+    xticks = (samples, ["2048", "4096", "8192", "16384", "32768"]),
+    xticklabelrotation = pi/8,
+    xminorticksvisible = false
+)
 
-fig = Figure(resoltion = (800, 600))
-ax = Axis(fig, xlabel = "Number of elements", ylabel = "Processing Time [s]")
+colors = colorschemes[:Set2_3]
 
-
-
-data = transpose(elapsed_min_times.Minimum)
-xs = samples
-labels = permutedims(algorithm_names)
-colors = [:black :blue :red]
-# pl = plot(
-#         xs,
-#         data,
-#         color = colors,
-#         label = labels,
-#         legend = :bottomright,
+# plot the data to the axes
+barplot!(
+    ax_bar,
+    vec(repeat(samples, inner=3)),
+    vec(reshape(mindata, (15, 1))),
+    dodge = vec(repeat([1,2,3], 5)),
+    color = colors[vec(repeat([1,2,3], 5))],
+    strokewidth = 0.1,
+    width = 300 .* (2 .^ ((repeat(1:length(samples), inner=3))))
+    )
+# barplot!(
+#     ax_bar,
+#     vec(repeat(samples, inner=3)),
+#     vec(reshape(meandata, (15, 1))),
+#     dodge = vec(repeat([1,2,3], 5)),
+#     color = vec(repeat(colors, 5))
 #     )
-# yaxis!("Processing Time [s]", :log10, minorgrid = true)
-# xaxis!("Number of elements", :log10, minorgrid = true)
+# plot the mean transparent
+labels = ["cplx_multi", "cplx", "pure"]
+title = "Algorithms"
+elements = [PolyElement(polycolor = colors[i]) for i in 1:length(labels)]
+
+Legend(fig_bar[1,2], elements, labels, "Reduction Algorithms", position = :tr)
+fig_bar[1,1] = ax_bar
+fig_bar
+save( plotsdir("reduction.pdf"), fig_bar)    

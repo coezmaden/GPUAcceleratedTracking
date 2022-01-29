@@ -5,7 +5,7 @@ using GPUAcceleratedTracking, DrWatson, Tracking, GNSSSignals, StructArrays, Pro
 allparams = Dict(
     "processor"   => ["GPU"],
     "GNSS"  => ["GPSL5"],
-    "num_samples" => 2 .^ (15:21),
+    "num_samples" => 2 .^ (15:18),
     "num_ants" => [1],
     "num_correlators" => [7],
     "algorithm" => [
@@ -18,11 +18,6 @@ allparams = Dict(
 )
 
 dicts = dict_list(allparams)
-
-# for (_, d) in enumerate(dicts)
-#     benchmark_results = run_track_benchmark(d)
-#     @tagsave(datadir("benchmarks/track", savename("TrackFunctionBenchmark", d, "jld2")), benchmark_results)
-# end
 
 @showprogress 1 "Benchmarking kernel algorithms" for (_, d) in enumerate(dicts)
     benchmark_results = run_kernel_benchmark(d)

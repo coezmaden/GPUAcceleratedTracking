@@ -55,33 +55,6 @@ accum = StructArray{ComplexF32}(
     )
 );
 #warmup
-function bench(
-    threads_per_block,
-    blocks_per_grid,
-    accum,
-    signal,
-    code_replica,
-    correlator_sample_shifts_unrolled,
-    carrier_frequency,
-    sampling_frequency,
-    carrier_phase,
-    num_samples,
-    Num_Ants::NumAnts{NANT}
-) where NANT
-    CUDA.@elapsed @cuda threads=threads_per_block blocks=blocks_per_grid shmem=shmem_size downconvert_and_correlate_kernel_3d_4431!(
-        accum.re,
-        accum.im,
-        signal.re,
-        signal.im,
-        code_replica,
-        correlator_sample_shifts_unrolled,
-        carrier_frequency,
-        sampling_frequency,
-        carrier_phase,
-        num_samples,
-        Num_Ants
-    )
-end
 @cuda threads=threads_per_block_1 blocks=(blocks_per_grid_1, num_sats) gen_code_replica_texture_mem_strided_nsat_kernel!(
         code_replica,
         codes,
