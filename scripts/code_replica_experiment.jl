@@ -4,8 +4,8 @@ import Tracking: Hz, ms;
 
 N = 2048:32:262_144
 err_rel  = zeros(length(N))
-# @showprogress 0.5 for (idx, num_samples) in enumerate(N)
-    num_samples = 2_048
+@showprogress 0.5 for (idx, num_samples) in enumerate(N)
+    # num_samples = 2_048
     num_ants = 1
     num_correlators = 3
     enable_gpu = Val(true)
