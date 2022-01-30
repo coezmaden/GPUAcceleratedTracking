@@ -1,4 +1,4 @@
-# function plot_replica_benchmark(raw_data_df)
+function plot_replica_benchmark(raw_data_df)
     using GPUAcceleratedTracking, DrWatson, DataFrames
 @quickactivate "GPUAcceleratedTracking"
 
