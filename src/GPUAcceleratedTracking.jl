@@ -12,7 +12,9 @@ using
     Dates,
     DataFrames,
     Query,
-    PrettyTables
+    PrettyTables,
+    CairoMakie,
+    ColorSchemes
     # Plots,
     # PGFPlotsX
     
@@ -28,6 +30,11 @@ struct ReductionAlgorithm{x}
 end
 
 ReductionAlgorithm(x) = ReductionAlgorithm{x}()
+
+struct ReplicaAlgorithm{x}
+end
+
+ReplicaAlgorithm(x) = ReplicaAlgorithm{x}()
 
 const GNSSDICT = Dict(
     "GPSL1" => GPSL1,
@@ -60,6 +67,11 @@ const REDDICT = Dict(
     "cplx_multi" => ReductionAlgorithm(3)
 )
 
+const MEMDICT = Dict(
+    "gmem" => ReplicaAlgorithm(1),
+    "textmem" => ReplicaAlgorithm(2)
+)
+
 const ALGODICTINV = Dict(
     1300 => "1_3_pure"                   ,
     1301 => "1_3_pure_textmem"           ,
@@ -81,6 +93,7 @@ const ALGODICTINV = Dict(
 include("algorithms.jl")
 include("reduction.jl")
 include("gen_signal.jl")
+include("replica_benchmarks.jl")
 include("benchmarks.jl")
 include("plots.jl")
 include("results.jl")
@@ -90,11 +103,12 @@ export
     run_track_benchmark,
     run_kernel_benchmark,
     run_reduction_benchmark,
+    run_replica_benchmark,
     add_results!,
     add_metadata!,
     eval_results,
-    plot_min_exec_time,
-    plot_min_exec_time_gpu,
+    plot_reduction_benchmark,
+    plot_replica_benchmark,
     reduce_3,
     reduce_4,
     reduce_5,
@@ -124,6 +138,7 @@ export
     cuda_reduce_partial_sum,
     kernel_algorithm,
     KernelAlgorithm,
-    ReductionAlgorithm
+    ReductionAlgorithm,
+    ReplicaAlgorithm
 
 end
