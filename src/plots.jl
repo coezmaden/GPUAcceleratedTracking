@@ -1,8 +1,6 @@
 function plot_replica_benchmark(raw_data_df)
-    using GPUAcceleratedTracking, DrWatson, DataFrames
-@quickactivate "GPUAcceleratedTracking"
 
-raw_data_df = collect_results(datadir("benchmarks/codereplica"))
+    raw_data_df = collect_results(datadir("benchmarks/codereplica"))
     sort!(raw_data_df, :num_samples)
     samples = unique(Vector{Int64}(raw_data_df[!, :num_samples]))
     algorithm_names = unique(Vector{String}(raw_data_df[!, :algorithm]))
