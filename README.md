@@ -27,6 +27,7 @@ To (locally) reproduce this project, do the following:
 This will install all necessary packages for you to be able to run the scripts and
 everything should work out of the box, including correctly finding local paths.
 
+Please contact the author can.oezmaden(at)rwth-aachen.de for the raw data attained during the experiments. 
 
 ## Kernels Description
 ![algorithms](https://user-images.githubusercontent.com/33359548/151870213-4a71e15a-b288-4a75-ba19-e435a9b5296e.svg)
