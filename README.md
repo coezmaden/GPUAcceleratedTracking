@@ -1,10 +1,15 @@
-# GPUAcceleratedTracking
+# Comparison of Optimization Strategies for a GPU-Enabled Multi-Antenna Multi-Correlator GNSS SDR Module
 
+This repository contains the source code for the paper *"Comparison of Optimization Strategies for a GPU-Enabled Multi-Antenna Multi-Correlator GNSS SDR Module"* contended for the ION GNSS+ Student Paper Award 2022.
+
+Scripts reproducing the benchmarks and figures can be found under `/scripts`, the algorithms source code under `/src`. 
+
+## How to use this repository
 This code base is using the Julia Language and [DrWatson](https://juliadynamics.github.io/DrWatson.jl/stable/)
 to make a reproducible scientific project named
 > GPUAcceleratedTracking
 
-It is authored by Can Ozmaden.
+It is authored by Can Özmaden.
 
 To (locally) reproduce this project, do the following:
 
@@ -23,13 +28,3 @@ everything should work out of the box, including correctly finding local paths.
 
 
 ## Kernels Description
-| Number | Description                                                                    |
-| -----  | -----------                                                                    |
-| 1      | Two kernels, d&c monolithic, two reductions with Harris#3                      |
-| 2      | Three kernels, code replica generation seperate, two reductions with Harris#3  |
-| 3      | Three kernels, code replica generation seperate, texture memory for code repl  |
-| 4      | Two kernels, c+d&c, texture memory for code repl                               |
-| 5      | Three kernels, code replica generation seperate, two reductions with Harris#4  |
-| 6      | Three kernels, code replica generation seperate, two reductions with Harris#5  |
-
-
