@@ -85,6 +85,9 @@ end
 
 x = vec(collect(N / 0.001)) # convert to Hz
 data = vec(100 .* err_rel)
+data_bar = mean(data)
+data_med = median(data)
+data_max = maximum(data)
 
 using CairoMakie
 fig = Figure(font = "Times New Roman")
@@ -93,18 +96,104 @@ ax = Axis(
     xlabel = "Sampling Frequency [Hz]",
     ylabel = "Relative Code Phase Error [%]",
     xscale = log10,
-    title = "Relative code phase error",
-    xlim = [0 400_000],
-    xmajorgridvisible = true,
+    title = "Relative code phase error of the texture memory code replica generation for 1 ms GPS L1 C/A signal",
+    # xlim = [0 400_000],
     xminorgridvisible = true,
     xminorticksvisible = true,
     xminorticks = IntervalsBetween(9),
-    xticks = [10^6, 10^7, 10^8, 10^9]
+    # yticks = (10.0 .^(-5:1:-3)),
+        # yticks = (10.0 .^(-5:1:-3)),
+
+    xticklabelsize = 18,
+    yticklabelsize = 18
 )
+xlims!(ax, 10^6, 5*10^8)
+# string_data_bar = "$(round(data_bar, sigdigits=3))%"
+# string_data_max = "$(round(data_max, sigdigits=3))%"
+# string_data_med = "$(round(data_med, sigdigits=3))%"
 
+# # textmu = "μ = " * string_data_bar 
+# # textmax = "max = " * string_data_max
+# textmed = "median = " * string_data_med
+lines!(ax, x,data)
+# hlines!(ax, data_bar, color = :dimgrey, linestyle = :dash)
+# hlines!(ax, data_med, color = :dimgrey, linestyle = :dash)
+# hlines!(ax, data_max, color = :dimgrey, linestyle = :dash)
+# text!(textmu, position = (9*10^8, 0.1+data_bar), align = (:right, :baseline))
+# text!(textmax, position = (9*10^8, data_max - 0.2), align = (:right, :baseline))
+# text!(textmed, position = (5*10^8, 0.5+data_med), align = (:center, :baseline))
 
-lines!(ax, x, 100 .* err_rel)
 fig[1,1] = ax
 fig
 
-save(plotsdir("code_phase_error.pdf"), fig)
+@quickactivate "GPUAcceleratedTracking"
+
+raw_data_df = collect_results(datadir("benchmarks/codereplica"))
+
+sort!(raw_data_df, :num_samples)
+samples = unique(Vector{Int64}(raw_data_df[!, :num_samples]))
+algorithm_names = unique(Vector{String}(raw_data_df[!, :algorithm]))
+samples = unique(Vector{Int64}(raw_data_df[!, :num_samples]))
+x = samples ./ 0.001 # convert to Hz
+algorithm_names = unique(Vector{String}(raw_data_df[!, :algorithm]))
+
+# fig = Figure(
+#     # resolution = (1000, 700),
+#     font = "Times New Roman"
+# )
+ax2 = Axis(
+    fig,
+    xlabel = "Sampling Frequency [Hz]",
+    ylabel = "Generation Time [s]",
+    xscale = log10,
+    yscale = log10,
+    title = "Comparison between global memory and texture memory code replica generation for 1 ms GPS L1 C/A signal",
+    xminorgridvisible = true,
+    xminorticksvisible = true,
+    xminorticks = IntervalsBetween(9),
+    # yticks = (10.0 .^(-5:1:-3)),
+    xticklabelsize = 18,
+    yticklabelsize = 18
+
+)
+xlims!(ax2, 10^6, 5*10^8)
+ylims!(ax2, 1.0e-5, 3.0e-3)
+
+
+lin = Array{Lines}(undef, length(algorithm_names)); 
+sca = Array{Scatter}(undef, length(algorithm_names));
+markers = [:circle, :rect]
+for (idx, name) = enumerate(algorithm_names)
+    time = 10 ^ (-9) * vec((
+        raw_data_df |>
+        @filter(
+            _.algorithm == name
+        ) |> DataFrame
+    ).Minimum)
+
+    lin[idx] = lines!(
+        ax2,
+        x,
+        time
+    )
+    sca[idx] = scatter!(
+        ax2,
+        x,
+        time,
+        marker = markers[idx],
+        markersize = 15
+    )
+end
+realtime = lines!(ax2, [10^6, 5 * 10^8], [10 ^ (-3), 10 ^ (-3)], color=:grey, linestyle=:dashdot)
+
+
+
+fig[2,1] = ax2
+fig
+elements = [[lin[1] sca[1]], [lin[2] sca[2]]]
+labels = ["Global Memory", "Texture Memory"]
+axislegend(ax2, elements, labels, "Code Replication Algorithms",  position = :lt)
+fig
+# save( plotsdir("benchmark_textmem.pdf"), fig)
+
+save(plotsdir("code_phase.pdf"), fig)

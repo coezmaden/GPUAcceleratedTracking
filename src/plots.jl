@@ -1,6 +1,5 @@
 function plot_replica_benchmark(raw_data_df)
 
-    raw_data_df = collect_results(datadir("benchmarks/codereplica"))
     sort!(raw_data_df, :num_samples)
     samples = unique(Vector{Int64}(raw_data_df[!, :num_samples]))
     algorithm_names = unique(Vector{String}(raw_data_df[!, :algorithm]))
@@ -105,25 +104,25 @@ function plot_reduction_benchmark(raw_data_df, num_ants, num_correlators)
     ax_bar = Axis(
         fig_bar,
         xlabel = "Number of elements",
-        ylabel = "Processing Time [s]",
+        ylabel = "Processing Time [μs]",
         xscale = log10,
         # yscale = log10,
-        title = "Reduction Algorithm Comparison for M = 4, L = 3",
+        title = "Reduction Algorithm Comparison for 4 antennas and 3 correlators",
         xticks = (samples, ["2048", "4096", "8192", "16384", "32768"]),
         xticklabelrotation = pi/8,
         xminorticksvisible = false
     )
-
-    colors = [:blue, :yellow, :green]
+    
+    colors = Makie.wong_colors()[1:3]
 
     # plot the data to the axes
     barplot!(
         ax_bar,
         vec(repeat(samples, inner=3)),
-        vec(reshape(mindata, (15, 1))),
+        vec(reshape( 1e-6*mindata, (15, 1))),
         dodge = vec(repeat([1,2,3], 5)),
         color = vec(repeat(colors, 5)),
-        strokewidth = 0.1,
+        # strokewidth = 0.1,
         width = 300 .* (2 .^ ((repeat(1:length(samples), inner=3))))
         )
     labels = ["cplx_multi", "cplx", "pure"]

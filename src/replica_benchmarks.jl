@@ -21,6 +21,8 @@ function _bench_replica(
     code_frequency = get_code_frequency(system)
     code_length = get_code_length(system)
     start_code_phase = 0.0f0
+    carrier_phase = 0.0f0
+    carrier_frequency = 1500Hz
     prn = 1
 
     # Generate the signal;
@@ -86,6 +88,8 @@ function _bench_replica(
     code_frequency = get_code_frequency(system)
     code_length = get_code_length(system)
     start_code_phase = 0.0f0
+    carrier_phase = 0.0f0
+    carrier_frequency = 1500Hz
     prn = 1
 
     # Generate the signal;

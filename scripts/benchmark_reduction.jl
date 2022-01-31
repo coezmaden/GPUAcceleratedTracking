@@ -6,7 +6,7 @@ allparams = Dict(
     "num_samples" => 2 .^ (11:15),
     "num_ants" => [4],
     "num_correlators" => [3],
-    "algorithm" => ["cplx_multi"]
+    "algorithm" => ["pure", "cplx", "cplx_multi"]
 )
 
 dicts = dict_list(allparams)
