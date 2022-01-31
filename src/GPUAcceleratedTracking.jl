@@ -39,7 +39,6 @@ ReplicaAlgorithm(x) = ReplicaAlgorithm{x}()
 const GNSSDICT = Dict(
     "GPSL1" => GPSL1,
     "GPSL5" => GPSL5,
-    "GalileoE1B" => GalileoE1B
 )
 
 const ALGODICT = Dict(

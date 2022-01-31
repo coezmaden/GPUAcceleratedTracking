@@ -10,19 +10,12 @@ gnss_string = Dict(
     "GPSL5" => "GPS L5 P"
 )
 os = "linux"
-
-# fig = plot_all(raw_data_df)
-
-# function plot_all(raw_data_df)
-# using CairoMakie    
+   
 fig = Figure(
     resolution = (1000, 1000),
     font = "Times New Roman",
     # fontsize = 10,
 )
-
-
-
 
 sort!(raw_data_df)
 
@@ -543,97 +536,6 @@ cpusca = scatter!(
 realtime = lines!(gpsl5_1ms_4_7_ax, [2 * 10^(7), 3 * 10^(8)], [10^(-3), 10^(-3)], linestyle = :dash, color = :dimgrey )
 fig[2,3] = gpsl5_1ms_4_7_ax
 fig
-
-
-# # PLOT GPS L5 C/A
-# gnss = "GPSL5"
-# num_ants = 16; num_correlators = 25
-# algorithm_names = algorithm_names[2:end]
-# gpsl5_1ms_16_25_ax = Axis(fig, 
-#     xlabel = "Sampling Frequency [Hz]",
-#     ylabel = "Processing Time [s]",
-#     xscale = log10,
-#     yscale = log10,
-#     xmajorgridvisible = true,
-#     xminorgridvisible = true,
-#     xminorticksvisible = true,
-#     xminorticks = IntervalsBetween(9),
-#     xticks = collect(10 .^ (6:9)),
-#     # yticks = collect(10.0 .^ (-6:-2)),
-#     title = "$(gnss_string[gnss]) T=1 ms, M=$num_ants, L=$num_correlators"
-# )
-# # xlims!(gpsl5_1ms_16_25_ax, [10^(6),  3 * 10^(8)])
-# # ylims!(gpsl5_1ms_16_25_ax, [10^(-6), 2*10^(-3)])
-# markers = [:rect, :utriangle, :circle, :diamond, :dtriangle]
-# lin = Array{Lines}(undef, length(algorithm_names)); 
-# sca = Array{Scatter}(undef, length(algorithm_names));
-# for (idx, algorithm) in enumerate(algorithm_names)
-#     if idx == 1
-#         hlines!(gpsl5_1ms_16_25_ax, 0,visible=false)
-#     else
-#         times = Float64.(
-#             (
-#                 raw_data_df |>
-#                     @filter(
-#                         _.processor == "GPU" &&
-#                         _.algorithm == algorithm_names[idx] &&
-#                         _.num_ants == num_ants &&
-#                         _.num_correlators == num_correlators &&
-#                         _.GNSS == gnss
-#                     ) |> 
-#                     @map(
-#                         {
-#                             _.Minimum
-#                         }
-#                     ) |> DataFrame
-#             ).Minimum
-#         )
-#         lin[idx] = lines!(
-#             gpsl5_1ms_16_25_ax, 
-#             freqs_gpsl5, 
-#             times .* 10 ^ (-9)
-#         )
-#         sca[idx] = scatter!(
-#             gpsl5_1ms_16_25_ax, 
-#             freqs_gpsl5, 
-#             times .* 10 ^ (-9),
-#             marker = markers[idx],
-#             markersize = 15
-#         )
-#     end
-# end
-# cputimes = Float64.(
-#         (
-#             raw_data_df |>
-#                 @filter(
-#                     _.processor == "CPU" &&
-#                     _.num_ants == num_ants &&
-#                     _.num_correlators == num_correlators &&
-#                     _.GNSS == gnss
-#                 ) |> 
-#                 @map(
-#                     {
-#                         _.Minimum
-#                     }
-#                 ) |> DataFrame
-#         ).Minimum
-#     )
-# cpulin = lines!(
-#     gpsl5_1ms_16_25_ax,
-#     freqs_gpsl5,
-#     cputimes .* 10 ^ (-9),
-# )
-# cpusca = scatter!(
-#     gpsl5_1ms_16_25_ax,
-#     freqs_gpsl5,
-#     cputimes .* 10 ^ (-9),
-#     marker = :star5,
-#     markersize = 15
-# )
-# realtime = lines!(gpsl5_1ms_16_25_ax, [10^(6), 3 * 10^(8)], [10^(-3), 10^(-3)], linestyle = :dash, color = :dimgrey )
-# fig[3,2] = gpsl5_1ms_16_25_ax
-# fig
-
 
 labels = [algorithm_names; "SIMD CPU"]
 entries = [];

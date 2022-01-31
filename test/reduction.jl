@@ -148,7 +148,7 @@ end
     # end
 end
 
-# @testset "Complex Multi Reduction #3 per Harris" begin
+@testset "Complex Multi Reduction #3 per Harris" begin
     num_samples = 2500
     num_ants = 1
     num_correlators = 3
