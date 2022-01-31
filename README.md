@@ -1,5 +1,9 @@
 # Comparison of Optimization Strategies for a GPU-Enabled Multi-Antenna Multi-Correlator GNSS SDR Module
 
+
+[![DOI](https://zenodo.org/badge/438278321.svg)](https://zenodo.org/badge/latestdoi/438278321)
+
+
 This repository contains the source code for the paper *"Comparison of Optimization Strategies for a GPU-Enabled Multi-Antenna Multi-Correlator GNSS SDR Module"* contended for the ION GNSS+ Student Paper Award 2022.
 ![desktop_allplots](https://user-images.githubusercontent.com/33359548/151870105-af00d1da-38bf-4e0d-aa53-7aa3c3b5a2e9.svg)
 
