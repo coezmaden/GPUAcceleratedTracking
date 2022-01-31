@@ -33,3 +33,9 @@ Please contact the author can.oezmaden(at)rwth-aachen.de for the raw data attain
 ![algorithms](https://user-images.githubusercontent.com/33359548/151870213-4a71e15a-b288-4a75-ba19-e435a9b5296e.svg)
 ###  NVIDIA Jetson AGX Xavier
 ![jetson_allplots](https://user-images.githubusercontent.com/33359548/151870294-15d61608-64e9-4271-8ea7-e30c3af64fea.svg)
+
+## Acknowledgements
+The following packages have played a crucial role during the preparation of this paper:
+* [JuliaGNSS](https://github.com/JuliaGNSS]): [Tracking.jl](https://github.com/JuliaGNSS/Tracking.jl), [GNSSSignals.jl](https://github.com/JuliaGNSS/GNSSSignals.jl)
+* GPU Programming: [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl)
+* Data analysis and visualization: [BenchmarkTools.jl](https://github.com/JuliaCI/BenchmarkTools.jl), [DrWatson.jl](https://github.com/JuliaDynamics/DrWatson.jl), [DataFrames.jl](https://github.com/JuliaData/DataFrames.jl), [Makie.jl](https://github.com/JuliaPlots/Makie.jl)
