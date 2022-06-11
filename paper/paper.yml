@@ -2,14 +2,11 @@ title: "Tracking.jl: Accelerating multi-antenna GNSS receivers with CUDA"
 keywords:
   - Julia
   - GNSS
-  - GPS
+  - Signal Processing
+  - SDR
   - CUDA 
   - GPU
-  - SDR
-  - Multi-antenna
-  - Multi-correlator
   - Optimization
-  - Benchmarking
 
 authors:
   - name: Can Özmaden
