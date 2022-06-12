@@ -100,7 +100,7 @@ function plot_reduction_benchmark(raw_data_df, num_ants, num_correlators)
     algorithm_names = unique(Vector{String}(elapsed_times[!, :algorithm]))
 
     # defines figure and axes    
-    fig_bar = Figure(font = "Times New Roman")
+    fig_bar = Figure()
     ax_bar = Axis(
         fig_bar,
         xlabel = "Number of elements",

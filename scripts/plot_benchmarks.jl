@@ -13,7 +13,7 @@ os = "linux"
    
 fig = Figure(
     resolution = (1000, 1000),
-    font = "Times New Roman",
+    # font = "Times New Roman",
     # fontsize = 10,
 )
 
