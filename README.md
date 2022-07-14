@@ -7,7 +7,7 @@
 This repository contains the source code for the paper *"Tracking.jl: Accelerating multi-antenna GNSS receivers with CUDA"*. It is submitted to be published in the [JuliaCon Proceedings](https://proceedings.juliacon.org/).
 ![desktop_allplots](https://user-images.githubusercontent.com/33359548/151870105-af00d1da-38bf-4e0d-aa53-7aa3c3b5a2e9.svg)
 
-Scripts reproducing the benchmarks and figures can be found under `/scripts`, the algorithms source code under `/src`. Paper itself resides under `/paper`. 
+Scripts reproducing the benchmarks and figures can be found under `/scripts`, the algorithms source code under `/src`. Paper itself resides under `/paper`. Here is a URL to the current [paper.pdf](https://github.com/ozmaden/GPUAcceleratedTracking/blob/master/paper/paper.pdf).
 
 ## Data
 You can download the raw data from the experiments on the two platforms specified in the paper [here](https://zenodo.org/record/5933726). 
