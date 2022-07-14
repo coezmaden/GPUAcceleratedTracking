@@ -1,13 +1,13 @@
-# Comparison of Optimization Strategies for a GPU-Enabled Multi-Antenna Multi-Correlator GNSS SDR Module
+# Tracking.jl: Accelerating multi-antenna GNSS receivers with CUDA
 
 
 [![DOI](https://zenodo.org/badge/438278321.svg)](https://zenodo.org/badge/latestdoi/438278321)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5933726.svg)](https://doi.org/10.5281/zenodo.5933726)
 
-This repository contains the source code for the paper *"Comparison of Optimization Strategies for a GPU-Enabled Multi-Antenna Multi-Correlator GNSS SDR Module"* contended for the ION GNSS+ Student Paper Award 2022.
+This repository contains the source code for the paper *"Tracking.jl: Accelerating multi-antenna GNSS receivers with CUDA"*. It is submitted to be published in the [JuliaCon Proceedings](https://proceedings.juliacon.org/).
 ![desktop_allplots](https://user-images.githubusercontent.com/33359548/151870105-af00d1da-38bf-4e0d-aa53-7aa3c3b5a2e9.svg)
 
-Scripts reproducing the benchmarks and figures can be found under `/scripts`, the algorithms source code under `/src`. 
+Scripts reproducing the benchmarks and figures can be found under `/scripts`, the algorithms source code under `/src`. Paper itself resides under `/paper`. 
 
 ## Data
 You can download the raw data from the experiments on the two platforms specified in the paper [here](https://zenodo.org/record/5933726). 
