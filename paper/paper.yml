@@ -1,21 +1,23 @@
-title: "My JuliaCon proceeding"
+title: "Tracking.jl: Accelerating multi-antenna GNSS receivers with CUDA"
 keywords:
   - Julia
-  - Optimization
-  - Game theory
-  - Compiler
+  - GNSS
+  - Signal Processing
+  - SDR
+  - CUDA 
+  - GPU
+
 authors:
-  - name: 1st author
-    orcid: 0000-0003-1361-440X
+  - name: Can Özmaden
+    orcid: 0000-0003-0614-3988
     affiliation: 1
-  - name: 2nd author
-    affiliation: 1, 2
-  - name: 3rd author
+
+  - name: Sören Schönbrod 
     affiliation: 2
 affiliations:
-  - name: University
+  - name: Chair of Navigation, RWTH Aachen University
     index: 1
-  - name: National Lab
+  - name: Julia Computing Inc.
     index: 2
-date: 24 April 2019
+date: 
 bibliography: ref.bib
