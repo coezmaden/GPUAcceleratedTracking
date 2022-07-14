@@ -38,7 +38,7 @@ This paper focuses on GPU acceleration. The use of GPUs to accelerate computatio
 
 Programmers are often challenged with various ways of optimizing the efficiency of GPU applications, especially their execution time. As mentioned above, real-time processing capability is crucial for software-defined GNSS receivers. This paper strives to highlight performance improvements fullfilling the real-time processing criteria based on empirical findings. In this paper, the comparison is carried out as a series of benchmarking experiments. Algorithms for the comparison are developed in a rapid prototyping fashion in Julia, a high-level high-performance language \cite{bezanson2017julia}. GPU programming is performed by utilizing the CUDA.jl package which provides an interface for Julia to wrap low-level functionalities of the CUDA framework without sacrificing performance \cite{Besard2018}. The developed algorithms extend Tracking.jl, an existing multi-antenna multi-correlator GPU-enabled GNSS SDR receiver module \cite{Schoenbrod2022}. The tested optimization strategies rely purely on CUDA and are therefore not exclusive to Julia.
 
-\subsubsection*{Paper Organization}This paper is organized as follows: in Section \ref{sec:signal-model} the signal model is presented, specifically the multi-correlation operation and the generation of replica signals. In Section \ref{sec:methodology} the experiment setup is introduced and the data acquisition methodology is described. Section \ref{sec:algorithm-design} introduces the CUDA programming model and describes the implementation of the GPU algorithms, including a description of the texture memory based code replication technique. Section \ref{sec:analysis} focuses on the analysis of the obtained experimental data, to draw outcomes and guidelines for the best performing optimization strategies. These outcomes are summarized, and a conclusion is presented in Section \ref{sec:conclusion}.
+This paper is organized as follows: in Section \ref{sec:signal-model} the signal model is presented, specifically the multi-correlation operation and the generation of replica signals. In Section \ref{sec:methodology} the experiment setup is introduced and the data acquisition methodology is described. Section \ref{sec:algorithm-design} introduces the CUDA programming model and describes the implementation of the GPU algorithms, including a description of the texture memory based code replication technique. Section \ref{sec:analysis} focuses on the analysis of the obtained experimental data, to draw outcomes and guidelines for the best performing optimization strategies. These outcomes are summarized, and a conclusion is presented in Section \ref{sec:conclusion}.
 
 \section{Signal Model}\label{sec:signal-model}
 
@@ -111,7 +111,7 @@ The two platforms cover interesting aspects of possible implementation scenarios
 
 \subsection*{Signal Generation}
 
-Signals of differing lengths and properties are generated according to the parameters provided in Table \ref{tab:params}. The sampling frequency is capped at a maximum of 400 MHz. The number of antennas is switched between one and four. The four antenna case is selected to emulate DLR's GALANT receiver with a 2x2 antenna array \cite{Cuntz2009}. The number of correlators is selected to include the classical early-prompt-late correlator, and additionally a correlator with seven taps. In this paper, the focus lies on the optimization of the correlation for one satellite channel. The parallelization over multiple channels can be easily extended as presented in \cite{Xu2017}. However, this brings with it the requirement to strictly synchronize the channels for coherent integration over fixed length. This is not explored in the making of this paper.
+Signals of differing lengths and properties are generated. The sampling frequency is capped at a maximum of 400 MHz. The number of antennas is switched between one and four. The four antenna case is selected to emulate DLR's GALANT receiver with a 2x2 uniform rectangular antenna array (URA) \cite{Cuntz2009}. The number of correlators is selected to include the classical early-prompt-late correlator, and additionally a correlator with seven taps. In this paper, the focus lies on the optimization of the correlation for one satellite channel. The parallelization over multiple channels can be easily extended as presented in \cite{Xu2017}. However, this brings with it the requirement to strictly synchronize the channels for coherent integration over fixed length. This is not explored in the making of this paper.
 
 The generated data signals assume a constant data bit stream of ones for the entire signal duration $T$. They are subsequently spread by multiplication with the respective CDMA code of the constellation and upconverted to $f_{\mathrm{IF}}$. Differing from Equation \ref{eqn:received-signal}, no AWGN is added to the signal, as the time complexity of the operations remains the same. The signal generation procedure for the GPU is provided below: 
 \begin{lstlisting}[language = Julia]
@@ -215,51 +215,51 @@ In this paper, kernel calls are reduced by implementing extended versions of the
 
 The CUDA kernel currently implemented in Tracking.jl is a variant of the first algorithm from Figure \ref{fig:algorithms}, albeit without the texture memory code generation. Additionally, this is the only kernel that possesses a multi-dimensional grid. The newly devised ones in this paper are all developed to be one-dimensional kernels, assigning more workload to each thread.
 
-\begin{algorithm}[h]
-    \caption{\label{alg:reduce-cplx} Complex multi reduction kernel extended from Harris \#3}
+% \begin{algorithm}[h]
+%     \caption{\label{alg:reduce-cplx} Complex multi reduction kernel extended from Harris \#3}
     
-    \begin{algorithmic}[1]
-        \Procedure{reduce\_cplx\_multi!}{output, input}
-            \vspace{1mm}
-            \State $\mathrm{tid} \gets \mathrm{threadIdx.x}$
-            \State $\mathrm{iq\_offset} \gets \mathrm{blockDim.x}$
-            \State $\mathrm{shmem} := \mathrm{DynamicSharedMemory} \in \mathtt{F32}^{\hspace{1mm}(2N)\times M \times L}$
-            \vspace{4mm}
-            \State \# Load input into shared memory
-            \State $n = \mathrm{blockIdx.x} \times \mathrm{blockDim.x} + \mathrm{threadIdx.x}$
+%     \begin{algorithmic}[1]
+%         \Procedure{reduce\_cplx\_multi!}{output, input}
+%             \vspace{1mm}
+%             \State $\mathrm{tid} \gets \mathrm{threadIdx.x}$
+%             \State $\mathrm{iq\_offset} \gets \mathrm{blockDim.x}$
+%             \State $\mathrm{shmem} := \mathrm{DynamicSharedMemory} \in \mathtt{F32}^{\hspace{1mm}(2N)\times M \times L}$
+%             \vspace{4mm}
+%             \State \# Load input into shared memory
+%             \State $n = \mathrm{blockIdx.x} \times \mathrm{blockDim.x} + \mathrm{threadIdx.x}$
 
-            \ForAll{$m \in M,\hspace{1mm} l \in L$}
-                \vspace{1mm}
-                \If{$n \leq \mathrm{length(input)}$}
-                    \State $\mathrm{shmem}[\mathrm{tid} \hspace{4.8em}, m, l] \gets \mathrm{input.re}[n, m, l]$
-                    \State $\mathrm{shmem}[\mathrm{tid}+\mathrm{iq\_offset}, m, l] \gets \mathrm{input.im}[n, m, l]$
-                \EndIf
+%             \ForAll{$m \in M,\hspace{1mm} l \in L$}
+%                 \vspace{1mm}
+%                 \If{$n \leq \mathrm{length(input)}$}
+%                     \State $\mathrm{shmem}[\mathrm{tid} \hspace{4.8em}, m, l] \gets \mathrm{input.re}[n, m, l]$
+%                     \State $\mathrm{shmem}[\mathrm{tid}+\mathrm{iq\_offset}, m, l] \gets \mathrm{input.im}[n, m, l]$
+%                 \EndIf
 
-                \vspace{2mm}
-                \State $\mathrm{sync\_threads}$ 
-                \vspace{2mm}
+%                 \vspace{2mm}
+%                 \State $\mathrm{sync\_threads}$ 
+%                 \vspace{2mm}
 
-                \State \# Perform tree-like reduction in shared memory
-                \For{$s = \mathrm{blockDim.x} \div 2,\hspace{1mm} s \neq 0 , \hspace{1mm}s = s \div 2 $}
-                    \vspace{1mm}
-                    \If{$\mathrm{tid} - 1 < s$}
-                        \State $\mathrm{shmem}[\mathrm{tid}, m, l] \gets \mathrm{shmem}[\mathrm{tid} + s, m, l]$
-                        \State $\mathrm{shmem}[\mathrm{tid}+\mathrm{iq\_offset}, m, l] \gets \mathrm{shmem}[\mathrm{tid} + s +\mathrm{iq\_offset}, m, l] $
-                        \vspace{2mm}
-                        \State $\mathrm{sync\_threads}$ 
-                    \EndIf
-                \EndFor
+%                 \State \# Perform tree-like reduction in shared memory
+%                 \For{$s = \mathrm{blockDim.x} \div 2,\hspace{1mm} s \neq 0 , \hspace{1mm}s = s \div 2 $}
+%                     \vspace{1mm}
+%                     \If{$\mathrm{tid} - 1 < s$}
+%                         \State $\mathrm{shmem}[\mathrm{tid}, m, l] \gets \mathrm{shmem}[\mathrm{tid} + s, m, l]$
+%                         \State $\mathrm{shmem}[\mathrm{tid}+\mathrm{iq\_offset}, m, l] \gets \mathrm{shmem}[\mathrm{tid} + s +\mathrm{iq\_offset}, m, l] $
+%                         \vspace{2mm}
+%                         \State $\mathrm{sync\_threads}$ 
+%                     \EndIf
+%                 \EndFor
 
-                \vspace{4mm}
-                \State \# First thread holds the result
-                \If{$\mathrm{tid} == 1$}
-                    \State $\mathrm{output.re}[\mathrm{blockIdx.x}, m, l] \gets \mathrm{shmem}[1, m, l]$
-                    \State $\mathrm{output.im}[\mathrm{blockIdx.x}, m, l] \gets \mathrm{shmem}[1 + \mathrm{iq\_offset}, m, l]$
-                \EndIf
-            \EndFor
-        \EndProcedure
-    \end{algorithmic}
-\end{algorithm}
+%                 \vspace{4mm}
+%                 \State \# First thread holds the result
+%                 \If{$\mathrm{tid} == 1$}
+%                     \State $\mathrm{output.re}[\mathrm{blockIdx.x}, m, l] \gets \mathrm{shmem}[1, m, l]$
+%                     \State $\mathrm{output.im}[\mathrm{blockIdx.x}, m, l] \gets \mathrm{shmem}[1 + \mathrm{iq\_offset}, m, l]$
+%                 \EndIf
+%             \EndFor
+%         \EndProcedure
+%     \end{algorithmic}
+% \end{algorithm}
 
 \subsection*{Code Replica Generation from Texture Memory}
 Generation of the code replica is computationally prohibitive due to the modding and flooring operations (see Equation \ref{eqn:code-replica}). The proposed receiver architecture loads all CDMA codes $c^{(k)}$ of $K$ satellites directly into the texture memory of the GPU in their original length at the beginning of the operation. At the time of writing this paper, the texture memory interface in CUDA.jl remains experimental and subject to change. An example for allocating a texture memory array is provided below. Note the specific memory adressing mode keyword argumenst passed to provide the desired functionality.
@@ -276,12 +276,12 @@ code_replica[thread_idx] = codes[(code_frequency/sampling_frequency * (thread_id
 \end{lstlisting}
 Note that this provides the advantage of sparing the mod and floor operations, due to the selected memory addressing modes earlier.
 
-Authors of \cite{Shi2021} have recently introduced a texture-memory-based algorithm for BeiDou signal generation by loading codes into the texture memory. However, the specific addressing and filtering modes used are not mentioned. The speed-up is therefore only achieved via caching. Authors of \cite{Li2012} implement the code and carrier replica generation via tables stored in texture memory. The use of addressing modes is mentioned but the algorithm is not presented.
+Authors of \cite{Shi2021} have recently introduced a texture-memory-based algorithm for BeiDou signal generation by loading codes into the texture memory. However, the specific addressing and filtering modes used are not mentioned. Authors of \cite{Li2012} implement the code and carrier replica generation via tables stored in texture memory. The use of addressing modes is mentioned but the algorithm is not presented.
 
 In this paper, the technique of code replica generation from texture memory is specifically applied to a multi-antenna GNSS receiver. Additionally, global memory and texture memory are used in cooperation, as the mutable code replica array is contained in the global memory of the GPU, initiated originally from the chip-length codes in the texture memory.
 
 \subsection*{SIMD}
-The existing codebase of Tracking.jl uses SIMD accelerated CPU correlation. This is perfomed by utilizing the LoopVecorization.jl \footnote{https://github.com/JuliaSIMD/LoopVectorization.jl} Package. It provides an selection of user friendly macros that can be prefixed to a loop as shown below on a concrete example of the correlation operation:
+The existing codebase of Tracking.jl uses SIMD-accelerated CPU correlation. This is perfomed by utilizing the LoopVecorization.jl \footnote{https://github.com/JuliaSIMD/LoopVectorization.jl} Package. It provides user friendly macros that can be prefixed to a loop as shown below on a concrete example of the correlation operation:
 \begin{lstlisting}[language = Julia]
 @avx for i = start_sample:num_samples + start_sample - 1
     for j = 1:length(a_re)
@@ -291,10 +291,12 @@ The existing codebase of Tracking.jl uses SIMD accelerated CPU correlation. This
     end
 end
 \end{lstlisting}
+In order to compare the effective output from programming different parallelization strategies on different hadrware in a fair manner, the GPU algorithms are benchmarked against the SIMD algorithm.
+
 \section{Experiment Evaluation}\label{sec:analysis}
 
 \subsection*{Reduction}
-An evaluation of the "cplx\_multi" reduction introduced in Section \ref{sec:algorithm-design} under Algorithm \ref{alg:reduce-cplx} is carried out. Parameters used in the experiment to assess the developed algorithm are provided in Table \ref{tab:reduction-params}. The results are provided in Figure \ref{fig:reduction-plot}. One can observe "cplx\_multi" outperforming "cplx" and "pure", due to the fusion of the kernel invocations. Therefore only "cplx\_multi" kernels are presented in this paper.
+An evaluation of the "cplx\_multi" reduction introduced in Section \ref{sec:algorithm-design} is carried out. Parameters used in the experiment to assess the developed algorithm are provided in Table \ref{tab:reduction-params}. The results are provided in Figure \ref{fig:reduction-plot}. One can observe "cplx\_multi" outperforming "cplx" and "pure", due to the fusion of the kernel invocations. Therefore only "cplx\_multi" kernels are presented in this paper.
 
 \begin{table}
   \centering
@@ -308,9 +310,8 @@ An evaluation of the "cplx\_multi" reduction introduced in Section \ref{sec:algo
 \end{table}
 \begin{figure}[h]
   \centering
-  \includegraphics[scale=0.6]{reduction.pdf}
-  \caption{Runtime analysis of the three reduction algorithms: "pure", "cplx", and "cplx\_multi"}
-  \label{fig:reduction-plot}
+  \includegraphics[scale=0.5]{reduction.pdf}
+  \caption{Runtime analysis of the three reduction algorithms: "pure", "cplx", and "cplx\_multi"\label{fig:reduction-plot}}
 \end{figure}
 
 
@@ -329,52 +330,42 @@ The generation of the code replica from the texture memory of the GPU requires t
   \end{tabular}
 \end{table}
 
-\begin{figure}
+\begin{figure*}[h]
   \centering
-  \includegraphics[scale = 0.6]{code_phase.pdf}
-  \caption{\label{fig:code-phase}Above: Code phase error due to the discrepancy between global memory and texture memory code replication algorithms. Below: runtime analysis between the global and texture memory code replication algorithms. The dashed line indicates the real-time bound.}
-\end{figure}
+  \includegraphics[width = 13cm]{code_phase.pdf}
+  \caption{Above: Code phase error due to the discrepancy between global memory and texture memory code replication algorithms. Below: runtime analysis between the global and texture memory code replication algorithms. The dashed line indicates the real-time bound.\label{fig:code-phase}}
+\end{figure*}
 
 \subsection*{Algorithms}
 Due to the multitude of various kernel combinations, only a few selected ones are presented in this paper. The experiment setup and related functions exist in the repository \cite{Ozmaden2022}. For the sake of brevity, only kernels with the 4th reduction algorithm are shown in this paper. They are decently performing and work effortlessly on non-power-of-two input sizes. 
 
-Upon close analysis of Figures \ref{fig:dekstop} and \ref{fig:jetson}, one can conclude the results suggest that differences between the architectures of the GPUs can not be ignored. The algorithms performing best on Platform \#1 are the worst-performers for Platform \#2, and vice-versa. The results also suggest merit in exploring parallelization on the CPU, as the CPU SIMD algorithms from \cite{Schoenbrod2022} are found to consistently outperform the GPU on Platform \#1. This is, however, not always the case on Platform \#2. A possible explanation for this is the fact that Platform \#2 possesses an ARM chip, with SIMD capabilities unmatched to the Desktop-grade Intel Core i5-9600K. Another factor is also the higher CPU clock frequency of Platform \#1. The relative mismatch between the power of the GPU and the power of the CPU on Platform \#2, leaning towards the GPU, also plays a role. The CUDA algorithm 
+Upon close analysis of Figures \ref{fig:allplots}, one can conclude the results suggest that differences between the architectures of the GPUs cannot be ignored. The algorithms performing best on Platform \#1 are the worst-performers for Platform \#2, and vice-versa. The results also suggest merit in exploring parallelization on the CPU, as the CPU SIMD algorithms from \cite{Schoenbrod2022} are found to consistently outperform the GPU on Platform \#1. This is, however, not always the case on Platform \#2. A possible explanation for this is the fact that Platform \#2 possesses an ARM chip, with SIMD capabilities unmatched to the Desktop-grade Intel Core i5-9600K. Another factor is also the higher CPU clock frequency of Platform \#1. The relative mismatch between the power of the GPU and the power of the CPU on Platform \#2, leaning towards the GPU, also plays a role. The CUDA algorithm 
 currently implemented in \cite{Schoenbrod2022} is being outperformed by the algorithms devised in this paper. Overall it can be said that the 4th algorithm under the name "4\_4\_cplx\_multi\_textmem" is the best performing for most of the time on Platform \#1. Whereas algorithm 2 under the name "2\_4\_cplx\_multi\_textmem" performs the best on Platform \#2, for cases utilizing under seven correlators. This is somewhat surprising, as it suggests launch configurations of individual kernels playing a bigger role on the Jetson device, and/or that Platform \#2 has shorter API overhead. Moreover, this could be attributed to the somewhat slower atomic operations on Platform \#2, as these are utilized in algorithms 4 and 5.
 
 The results suggest real-time operation capabilities of the developed algorithms, even under introduced multi-antenna and multi-correlator load. Most algorithms can be executed in real-time under 20 MHz sampling frequency both on Platform \#1 and \#2. Some algorithms reach around 40 MHz processing capability with 4 antennas or even 100 MHz with a single antenna and an early-prompt-late correlator. Only the case of processing GPS L5 I5 signals with 4 antennas and 7 correlators remains an unsolved challenge.
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[scale=0.6]{desktop_allplots.pdf}
-  \caption{Processing time of correlation of a 1ms GPS signal on Platform \#1. The dashed line indicates the real-time processing bound.}
-  \label{fig:dekstop}
-\end{figure}
-\begin{figure}[b]
-    \centering
-    \includegraphics[scale=0.6]{jetson_allplots.pdf}
-    \caption{Processing time of correlation of a 1ms GPS signal on Platform \#2. The dashed line indicates the real-time processing bound.}
-    \label{fig:jetson}
-\end{figure}
 
 \section{Conclusion}\label{sec:conclusion}
-A series of benchmarks was carried out across different GPU algorithms with varying signal input sizes, ranging in the sampling frequency, number of antennas, and number of correlators from the GPS constellation at two frequency bands and respective codes: GPS L1 C/A, GPS L5 I5. The GPU algorithms differ in their implementation of the parallel reduction, use of texture memory for code replication, and the fusion of subsequent kernels. Benchmarking measurements are collected via a statistical benchmarking package, accounting for the differences in timings due to system noise.
-
-The algorithms are implemented in Julia, an open-source, dynamic, just-in-time compiled, high-performance high-level language. GPU kernel functions utilize the CUDA.jl package, which provides an interface for Julia to wrap functionalities of CUDA C at no performance cost. The correctness of the results calculated by the algorithms is verified via the testing ecosystem of Julia. The outcomes of this paper, however, are not limited to the Julia language, as these rely purely on CUDA.
-
-A comparison between the algorithms has shown differing results for the two platforms under test. For the Desktop PC, an implementation with the code replication kernel separate from a fused carrier wipe-off and single-pass reduction kernel shows the best performance for lower sampling frequencies of the receiver (referred to as "4\_4\_cplx\_multi\_textmem" in this paper). With the increasing sampling frequency, however, the difference between the tested algorithms diminishes. The SIMD-based CPU algorithms outperform the GPU algorithms on a Desktop PC under test (referred to as Platform \#1), albeit fall behind on the NVIDIA Jetson device (referred to as Platform \#2). The fully separate kernel algorithm performed the best on the NVIDIA Jetson device (referred to as "2\_4\_cplx\_multi\_textmem"). All the developed algorithms show real-time capabilities under the assumption of  4 antennas and 20 MHz sampling frequency, with some algorithms reaching the 100 MHz mark for single antenna operation.
-
-A repository containing the experiment setup and the source code of the algorithms is made available on Github \cite{Ozmaden2022}. Raw data obtained from the experiments on the two platforms described in this paper is also made available under a Creative Commons license \cite{Ozmaden2022_2}.
-
-To the best of the authors' knowledge, this is the first publication describing the code replication algorithm on the GPU utilizing both texture memory and global memory. Additionally, it is the first to utilize the Julia programming language to implement CUDA GNSS signal processing algorithms.
+A series of benchmarks were carried out across different GNSS tracking algorithms on the GPU and CPU. Benchmarks varied the signal input sizes through the the sampling frequency, number of antennas, and number of correlators. Simulated signals were from the GPS constellation at two frequency bands and following codes: GPS L1 C/A, GPS L5 I5. The GPU algorithms differ in their implementation of the parallel reduction, use of texture memory for code replication, and the fusion of subsequent kernels. To keep the comparison fair, GPU algorithms were benchmarked against a parallelized SIMD CPU algorithm. A comparison between the algorithms has shown differing results for the two platforms under test. For the Desktop PC, an implementation with the code replication kernel separate from a fused carrier wipe-off and single-pass reduction kernel shows the best performance for lower sampling frequencies of the receiver. The SIMD-based CPU algorithms outperform the GPU algorithms on a Desktop PC, but fall behind on the NVIDIA Jetson device. The fully separate kernel algorithm performed the best on the NVIDIA Jetson device. All developed algorithms show real-time capabilities under the assumption of 4 antennas, 3 correlators and 20 MHz sampling frequency.
 
 \section*{Acknowledgements}
-I would like to thank Sören Schönbrod for his contributions to the Tracking.jl package \cite{Schoenbrod2022} and for his input and guidance in preparing this paper. Additionally, I would like to thank Tim Besard, creator and co-maintainer of CUDA.jl, for his readiness to answer questions and offer advice. The data for this paper has been gathered utilizing DrWatson.jl, and visualized by using Makie.jl \cite{Datseris2020, Danisch2021}. The NVIDIA Jetson Platform has been provided by the Chair of Navigation within the project ROSANNA of the German Aerospace Center (DLR) on behalf of the German Federal Ministry for Economic Affairs and Energy under grant number: 5O NA 1901. This support is greatly acknowledged.
+I would like to thank Tim Besard, creator and co-maintainer of CUDA.jl, for his readiness to answer questions and offer advice. The data for this paper has been gathered utilizing DrWatson.jl, and visualized by using Makie.jl \cite{Datseris2020, Danisch2021}. The NVIDIA Jetson Platform has been provided by the Chair of Navigation within the project ROSANNA of the German Aerospace Center (DLR) on behalf of the German Federal Ministry for Economic Affairs and Energy under grant number: 5O NA 1901. This support is greatly acknowledged.
 
 \input{bib.tex}
 
 \newpage
-\section*{Appendix}
+% \section*{Appendix}
+% \begin{figure*}[t]
+%     \centerline{\includegraphics[width=13cm]{reduction-tree.pdf}}
+%     \caption{Visualization of a tree-like reduction algorithm from \cite{Harris2007}, using a coalesced memory access. The kernel is first launched on a grid of two blocks, which produce their respective partial sums for the 2nd kernel launch to sum.}
+%     \label{fig:reduction1}
+% \end{figure*}
 
+\begin{figure*}[t]
+    \centerline{\includegraphics[scale = .8]{allplots.pdf}}
+    \caption{Above: Processing time of correlation of a 1ms GPS signal on Platform \#1. Below: Processing time of correlation of a 1ms GPS signal on Platform \#2. The dashed line indicates the real-time processing bound.\label{fig:allplots}}
+ \end{figure*}
+ 
 \end{document}
 
 % Inspired by the International Journal of Computer Applications template

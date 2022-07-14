@@ -11,8 +11,13 @@ authors:
   - name: Can Özmaden
     orcid: 0000-0003-0614-3988
     affiliation: 1
+
+  - name: Sören Schönbrod 
+    affiliation: 2
 affiliations:
-  - name: Faculty of Electrical Engineering and Information Technology, Chair of Navigation, RWTH Aachen University
+  - name: Chair of Navigation, RWTH Aachen University
     index: 1
+  - name: Julia Computing Inc.
+    index: 2
 date: 
 bibliography: ref.bib
